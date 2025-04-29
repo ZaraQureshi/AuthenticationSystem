@@ -1,0 +1,11 @@
+import { Hono } from 'hono';
+import { registerUser } from '../src/contoller';
+const routes = new Hono();
+routes.post('/register', registerUser);
+routes.post('/login');
+routes.post('/logout');
+routes.post('/refresh-token');
+routes.post('/forgot-password');
+routes.post('/reset-password');
+routes.post('/verify-email');
+export default routes;
