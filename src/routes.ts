@@ -1,14 +1,14 @@
 import { Hono } from 'hono';
 import { register } from 'module';
-import { registerUser,ping,loginUser,refreshToken } from '../src/contoller';
+import { registerUser,ping,loginUser,refreshToken,forgotPassword, resetPassword } from '../src/contoller';
  const routes = new Hono();
 
 routes.post('/register',registerUser);
 routes.post('/login',loginUser);
 routes.post('/logout');
 routes.post('/refresh-token',refreshToken);
-routes.post('/forgot-password');
-routes.post('/reset-password');
+routes.post('/forgot-password',forgotPassword);
+routes.post('/reset-password',resetPassword);
 routes.post('/verify-email');
 routes.get('/ping',ping);
 export default routes;

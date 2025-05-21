@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import dotenv from 'dotenv';
 import { log } from "console";
 import { access } from "fs";
+import { getUserByEmail, loginSchema } from "./utils";
 dotenv.config();
 const app = new Hono();
 const ACCESS_SECRET = process.env.ACCESS_SECRET!;
@@ -31,7 +32,7 @@ export const registerUser = async (c: Context) => {
 
     const { email, password, username } = await c.req.json();
     // check if user already exists
-    const existingUser = await db.select().from(users).where(eq(users.email, email));
+    const existingUser = await getUserByEmail(email);
     if (existingUser.length > 0) {
         return c.json({ message: 'User already exists' }, 409);
     }
@@ -48,9 +49,17 @@ export const registerUser = async (c: Context) => {
     }
 }
 export const loginUser = async (c: Context) => {
-    const { email, password } = await c.req.json();
+    const body = await c.req.json();
+    console.log(body);
+
+    const result = loginSchema.safeParse(body);
+    if (!result.success) {
+        return c.json({ error: result.error.flatten() }, 400);
+    }
+    const { email, password } = result.data;
+    console.log(result)
     // check if user exists
-    const userExists = await db.select().from(users).where(eq(users.email, email));
+    const userExists = await getUserByEmail(email);
     if (userExists.length === 0) {
         return c.json({ message: 'User does not exist' }, 404);
     }
@@ -67,23 +76,65 @@ export const loginUser = async (c: Context) => {
 }
 
 export const refreshToken = async (c: Context) => {
-    const {refreshToken} = await c.req.json();
+    const { refreshToken } = await c.req.json();
     console.log(c.req.json());
     try {
-        const payload:any = verify(refreshToken, REFRESH_SECRET) as any;
-        console.log(payload.userId);
-        
-        const newAccessToken=generateAccessToken(payload.userId)
-        return c.json({newAccessToken})
-
+        const payload: any = verify(refreshToken, REFRESH_SECRET) as any;
+        const newAccessToken = generateAccessToken(payload.userId)
+        return c.json({ newAccessToken })
     }
     catch (ex) {
-        return c.json({"message":"Invalid refresh token"},401)
-
+        return c.json({ "message": "Invalid refresh token" }, 401)
     }
-
 }
 
+export const forgotPassword = async (c: Context) => {
+
+    const { refreshToken } = await c.req.json();
+    console.log(refreshToken)
+    const payload: any = verify(refreshToken, REFRESH_SECRET) as any;
+
+
+    const userFound = await getUserByEmail(payload.userId)
+    console.log(userFound.length);
+
+    let resetToken = "";
+    if (userFound.length === 1) {
+        // Generate a password reset token.
+        // Here we simply sign the user's id, but consider adding additional claims or using a separate token.
+        console.log(userFound);
+        console.log("reseg=Toekn:", sign({ userId: userFound[0].email }, ACCESS_SECRET, { expiresIn: '1h' }));
+
+        resetToken = sign({ userId: userFound[0].email }, ACCESS_SECRET, { expiresIn: '1h' });
+
+        console.log(resetToken)
+    }
+    // For security, you might want to return the same message even if not found
+    console.log(payload.userId)
+    return c.json({ message: 'If this email is registered, you will receive a reset link', resetToken });
+
+}
+export const resetPassword = async (c: Context) => {
+    const { resetToken, newPassword } = await c.req.json();
+    if (!resetToken || !newPassword) {
+        return c.json({ message: 'Reset token and new password are required.' }, 400);
+    }
+    try {
+
+        const payload: any = await verify(resetToken, ACCESS_SECRET) as any;
+
+        const existingUser = await getUserByEmail(payload.userId);
+
+        if (existingUser.length === 1) {
+            
+            const resetPassword = await db.update(users).set({ hashedPassword: newPassword }).where(eq(users.email, existingUser[0].email));
+            
+            return c.json({ "message": "Password reset successfull" }, 200)
+        }
+    } catch (error) {
+        return c.json({ "message": "Token expired" }, 401)
+    }
+}
 export const ping = async (c: Context) => {
     return c.json({ "message": "pining" })
 
