@@ -1,5 +1,7 @@
 //todo- rate limiting
 // todo-request throttling
+// todo-identity token
+// valiadtion for request token
 import { Context, Hono } from "hono";
 import { sign, verify } from "jsonwebtoken";
 import { db } from "./db";
@@ -28,7 +30,6 @@ const generateRefreshToken = (user: any) => {
 
 // the Context is an object that represents everything related to the current HTTP request and response.
 export const registerUser = async (c: Context) => {
-    console.log("register");
 
     const { email, password, username } = await c.req.json();
     // check if user already exists
@@ -40,24 +41,21 @@ export const registerUser = async (c: Context) => {
     // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = db.insert(users).values({ email, hashedPassword, username }).returning();
-    console.log("Promise user:", user);
     const userdata = await user;
-    console.log("userdata:", userdata);
 
     if (userdata.length > 0) {
         return c.json({ message: 'User regsitered successfully' }, 201);
     }
+    return c.json({ message: "Could not register." }, 400)
 }
 export const loginUser = async (c: Context) => {
     const body = await c.req.json();
-    console.log(body);
 
     const result = loginSchema.safeParse(body);
     if (!result.success) {
         return c.json({ error: result.error.flatten() }, 400);
     }
     const { email, password } = result.data;
-    console.log(result)
     // check if user exists
     const userExists = await getUserByEmail(email);
     if (userExists.length === 0) {
@@ -66,6 +64,8 @@ export const loginUser = async (c: Context) => {
     const user = userExists[0];
     // check if password is correct
     const checkPassword = await bcrypt.compare(password, user.hashedPassword);
+
+
     if (!checkPassword) {
         return c.json({ message: 'Invalid credentials' }, 401)
     }
@@ -77,9 +77,9 @@ export const loginUser = async (c: Context) => {
 
 export const refreshToken = async (c: Context) => {
     const { refreshToken } = await c.req.json();
-    console.log(c.req.json());
     try {
         const payload: any = verify(refreshToken, REFRESH_SECRET) as any;
+        // verify whether the access token is expired or not
         const newAccessToken = generateAccessToken(payload.userId)
         return c.json({ newAccessToken })
     }
@@ -90,27 +90,21 @@ export const refreshToken = async (c: Context) => {
 
 export const forgotPassword = async (c: Context) => {
 
-    const { refreshToken } = await c.req.json();
-    console.log(refreshToken)
-    const payload: any = verify(refreshToken, REFRESH_SECRET) as any;
+    const { email } = await c.req.json();
+
+    // no need for refresh token validation, forgot password will be unprotected
+    // const payload: any = verify(refreshToken, REFRESH_SECRET) as any;
 
 
-    const userFound = await getUserByEmail(payload.userId)
-    console.log(userFound.length);
-
+    const userFound = await getUserByEmail(email)
+    // send email to the user
     let resetToken = "";
     if (userFound.length === 1) {
-        // Generate a password reset token.
-        // Here we simply sign the user's id, but consider adding additional claims or using a separate token.
-        console.log(userFound);
-        console.log("reseg=Toekn:", sign({ userId: userFound[0].email }, ACCESS_SECRET, { expiresIn: '1h' }));
 
-        resetToken = sign({ userId: userFound[0].email }, ACCESS_SECRET, { expiresIn: '1h' });
+        resetToken = sign({ email }, ACCESS_SECRET, { expiresIn: '1h' });
 
-        console.log(resetToken)
     }
     // For security, you might want to return the same message even if not found
-    console.log(payload.userId)
     return c.json({ message: 'If this email is registered, you will receive a reset link', resetToken });
 
 }
@@ -120,15 +114,17 @@ export const resetPassword = async (c: Context) => {
         return c.json({ message: 'Reset token and new password are required.' }, 400);
     }
     try {
-
+        // verify whether it is expired
         const payload: any = await verify(resetToken, ACCESS_SECRET) as any;
 
-        const existingUser = await getUserByEmail(payload.userId);
+        const existingUser = await getUserByEmail(payload.email);
+
+        const hashedNewPassord = await bcrypt.hash(newPassword, 10);
 
         if (existingUser.length === 1) {
-            
-            const resetPassword = await db.update(users).set({ hashedPassword: newPassword }).where(eq(users.email, existingUser[0].email));
-            
+
+            const resetPassword = await db.update(users).set({ hashedPassword: hashedNewPassord }).where(eq(users.email, existingUser[0].email));
+
             return c.json({ "message": "Password reset successfull" }, 200)
         }
     } catch (error) {
