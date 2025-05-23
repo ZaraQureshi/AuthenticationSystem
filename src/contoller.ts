@@ -2,6 +2,7 @@
 // todo-request throttling
 // todo-identity token
 // valiadtion for request token
+// email parsing microservice
 import { Context, Hono } from "hono";
 import { sign, verify } from "jsonwebtoken";
 import { db } from "./db";
@@ -131,6 +132,22 @@ export const resetPassword = async (c: Context) => {
         return c.json({ "message": "Token expired" }, 401)
     }
 }
+
+export const sentEmailVerification=async (c:Context)=>{
+    const {email}= await c.req.json();
+    const EmailToken= await sign({email},ACCESS_SECRET,{expiresIn:'1h'});
+    // send a link in email to user with the verifyEmailToken
+    return c.json({message:"Email sent to user"})
+}
+export const verifyEmail=async (c:Context)=>{
+    const {emailToken}=await c.req.json();
+    const verifyEmailToken= await verify(emailToken,ACCESS_SECRET);
+    if(verifyEmailToken){
+        return c.json({message:"Emailverified"},200)
+    }
+    return c.json({message:"Not verified"},400)
+}
+
 export const ping = async (c: Context) => {
     return c.json({ "message": "pining" })
 
