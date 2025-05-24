@@ -14,6 +14,7 @@ import { log } from "console";
 import { access } from "fs";
 import { getUserByEmail, loginSchema, logoutSchema, purgeExpiredTokensSchema } from "./utils";
 import { invalidateTokenForLogout, purgeExpiredTokensFromDB } from "./service";
+import { AuthError, RequestError } from "./errors";
 dotenv.config();
 const app = new Hono();
 const ACCESS_SECRET = process.env.ACCESS_SECRET!;
@@ -168,6 +169,7 @@ export const purgeExpiredTokens = async (c: Context) => {
     const { secret } = result.data;
 
     await purgeExpiredTokensFromDB(secret);
+    throw new AuthError();
 
     return c.json({ "message": "Complete" }, 200)
 }
