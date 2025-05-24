@@ -1,0 +1,18 @@
+meta {
+  name: logout
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://localhost:3000/api/logout
+  body: json
+  auth: none
+}
+
+body:json {
+  {         
+    "userId": 5      ,  
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ6YXJhNEBnbWFpbC5jb20iLCJpYXQiOjE3NDc5ODMxNTcsImV4cCI6MTc0ODU4Nzk1N30.KO9w225ZPz7D-kotPej6OccYV4xJZATL8P8IBwAApGE"
+  }
+}

@@ -1,0 +1,17 @@
+meta {
+  name: purge-expired-Tokens
+  type: http
+  seq: 5
+}
+
+post {
+  url: http://localhost:3000/api/purge-expired-tokens
+  body: json
+  auth: none
+}
+
+body:json {
+  {         
+    "secret": "{{PURGE_SECRET}}"
+  }
+}
