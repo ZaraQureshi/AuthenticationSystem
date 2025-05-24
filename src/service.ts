@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, gte, lte } from "drizzle-orm";
 import { db } from "./db"
 import { tokens } from "./drizzle/schema";
 import { getExpiryFromToken } from "./utils";
@@ -20,4 +20,15 @@ export const invalidateTokenForLogout = async (userId: number, token: string) =>
             updatedAt: new Date().toISOString(),
         }
     );
+}
+
+export const purgeExpiredTokensFromDB = async (secret: string) => {
+    // todo: better security
+    if (secret !== process.env.PURGE_SECRET) return;
+
+    const expiredTokens = await db
+        .delete(tokens)
+        .where(lte(tokens.expiryDate, new Date().toISOString()));
+    
+    const a = 0;
 }

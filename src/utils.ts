@@ -14,6 +14,10 @@ export const logoutSchema = z.object({
   refreshToken: z.string(),
 });
 
+export const purgeExpiredTokensSchema = z.object({
+  secret: z.string().min(16),
+});
+
 export const getUserByEmail = async (email: any) => {
   return await db.select().from(users).where(eq(users.email, email));
 }

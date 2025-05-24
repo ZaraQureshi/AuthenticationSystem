@@ -12,8 +12,8 @@ import bcrypt from "bcryptjs";
 import dotenv from 'dotenv';
 import { log } from "console";
 import { access } from "fs";
-import { getUserByEmail, loginSchema, logoutSchema } from "./utils";
-import { invalidateTokenForLogout } from "./service";
+import { getUserByEmail, loginSchema, logoutSchema, purgeExpiredTokensSchema } from "./utils";
+import { invalidateTokenForLogout, purgeExpiredTokensFromDB } from "./service";
 dotenv.config();
 const app = new Hono();
 const ACCESS_SECRET = process.env.ACCESS_SECRET!;
@@ -160,6 +160,16 @@ export const logout = async (c: Context) => {
     if (user.length > 0) await invalidateTokenForLogout(userId, refreshToken);
 
     return c.json({ "message": "Logged out successfully" }, 200)
+}
+
+export const purgeExpiredTokens = async (c: Context) => {
+    const result = purgeExpiredTokensSchema.safeParse(await c.req.json());
+    if (!result.success) return c.json({ error: result.error.flatten() }, 400);
+    const { secret } = result.data;
+
+    await purgeExpiredTokensFromDB(secret);
+
+    return c.json({ "message": "Complete" }, 200)
 }
 
 export const ping = async (c: Context) => {
