@@ -3,13 +3,14 @@
 import { Context, Hono } from "hono";
 import { sign, verify } from "jsonwebtoken";
 import { db } from "./db";
-import { users } from "../src/drizzle/schema";
+import { users, tokens } from "../src/drizzle/schema";
 import { and, eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import dotenv from 'dotenv';
 import { log } from "console";
 import { access } from "fs";
-import { getUserByEmail, loginSchema } from "./utils";
+import { getUserByEmail, loginSchema, logoutSchema } from "./utils";
+import { invalidateTokenForLogout } from "./service";
 dotenv.config();
 const app = new Hono();
 const ACCESS_SECRET = process.env.ACCESS_SECRET!;
@@ -114,6 +115,7 @@ export const forgotPassword = async (c: Context) => {
     return c.json({ message: 'If this email is registered, you will receive a reset link', resetToken });
 
 }
+
 export const resetPassword = async (c: Context) => {
     const { resetToken, newPassword } = await c.req.json();
     if (!resetToken || !newPassword) {
@@ -126,16 +128,27 @@ export const resetPassword = async (c: Context) => {
         const existingUser = await getUserByEmail(payload.userId);
 
         if (existingUser.length === 1) {
-            
+
             const resetPassword = await db.update(users).set({ hashedPassword: newPassword }).where(eq(users.email, existingUser[0].email));
-            
+
             return c.json({ "message": "Password reset successfull" }, 200)
         }
     } catch (error) {
         return c.json({ "message": "Token expired" }, 401)
     }
 }
+
+export const logout = async (c: Context) => {
+    const result = logoutSchema.safeParse(await c.req.json());
+    if (!result.success) return c.json({ error: result.error.flatten() }, 400);
+    const { userId, refreshToken } = result.data;
+
+    const user = await db.select().from(users).where(eq(users.id, userId));
+    if (user.length > 0) await invalidateTokenForLogout(userId, refreshToken);
+
+    return c.json({ "message": "Logged out successfully" }, 200)
+}
+
 export const ping = async (c: Context) => {
     return c.json({ "message": "pining" })
-
 }
