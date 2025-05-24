@@ -14,7 +14,8 @@ import { log } from "console";
 import { access } from "fs";
 import { getUserByEmail, loginSchema, logoutSchema, purgeExpiredTokensSchema } from "./utils";
 import { invalidateTokenForLogout, purgeExpiredTokensFromDB } from "./service";
-import { AuthError, RequestError } from "./errors";
+import { AuthError } from "./errors";
+
 dotenv.config();
 const app = new Hono();
 const ACCESS_SECRET = process.env.ACCESS_SECRET!;
@@ -152,16 +153,7 @@ export const verifyEmail=async (c:Context)=>{
 }
 
 
-export const logout = async (c: Context) => {
-    const result = logoutSchema.safeParse(await c.req.json());
-    if (!result.success) return c.json({ error: result.error.flatten() }, 400);
-    const { userId, refreshToken } = result.data;
 
-    const user = await db.select().from(users).where(eq(users.id, userId));
-    if (user.length > 0) await invalidateTokenForLogout(userId, refreshToken);
-
-    return c.json({ "message": "Logged out successfully" }, 200)
-}
 
 export const purgeExpiredTokens = async (c: Context) => {
     const result = purgeExpiredTokensSchema.safeParse(await c.req.json());
@@ -172,6 +164,18 @@ export const purgeExpiredTokens = async (c: Context) => {
     throw new AuthError();
 
     return c.json({ "message": "Complete" }, 200)
+}
+
+
+export const logout = async (c: Context) => {
+    const result = logoutSchema.safeParse(await c.req.json());
+    if (!result.success) return c.json({ error: result.error.flatten() }, 400);
+    const { userId, refreshToken } = result.data;
+
+    const user = await db.select().from(users).where(eq(users.id, userId));
+    if (user.length > 0) await invalidateTokenForLogout(userId, refreshToken);
+
+    return c.json({ "message": "Logged out successfully" }, 200)
 }
 
 export const ping = async (c: Context) => {
