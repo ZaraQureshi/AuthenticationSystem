@@ -43,7 +43,7 @@ export const registerUser = async (c: Context) => {
     // create user
     // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = db.insert(users).values({ email, hashedPassword, username }).returning();
+    const user = db.insert(users).values({ email, hashedPassword, username,isVerified:false }).returning();
     const userdata = await user;
 
     if (userdata.length > 0) {
