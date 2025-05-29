@@ -3,6 +3,9 @@ import { db } from "./db"
 import { users } from "./drizzle/schema";
 import { and, eq } from "drizzle-orm";
 import { refreshToken } from "./contoller";
+import {Pool as PgPool} from 'pg';
+import { drizzle } from "drizzle-orm/node-postgres";
+import { pgSchema } from "drizzle-orm/pg-core";
 
 export const loginSchema = z.object({
   email: z.string().email(),
@@ -32,4 +35,5 @@ export const getExpiryFromToken = (token: string) => {
   const decodedPayload = JSON.parse(atob(payload));
   return new Date(decodedPayload.exp * 1000).toISOString();
 }
+
 
