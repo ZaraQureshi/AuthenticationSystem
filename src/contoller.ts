@@ -5,7 +5,7 @@
 // email parsing microservice
 import { Context, Hono } from "hono";
 import { sign, verify } from "jsonwebtoken";
-import { db } from "./db";
+import { createSchema, db } from "./db";
 import { users, tokens } from "../src/drizzle/schema";
 import { and, eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -44,7 +44,7 @@ export const registerUser = async (c: Context) => {
     // create user
     // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = db.insert(users).values({ email, hashedPassword, username,isVerified:false }).returning();
+    const user = db.insert(users).values({ email, hashedPassword, username, isVerified: false }).returning();
     const userdata = await user;
 
     if (userdata.length > 0) {
@@ -137,23 +137,20 @@ export const resetPassword = async (c: Context) => {
     }
 }
 
-export const sentEmailVerification=async (c:Context)=>{
-    const {email}= await c.req.json();
-    const EmailToken= await sign({email},ACCESS_SECRET,{expiresIn:'1h'});
+export const sentEmailVerification = async (c: Context) => {
+    const { email } = await c.req.json();
+    const EmailToken = await sign({ email }, ACCESS_SECRET, { expiresIn: '1h' });
     // send a link in email to user with the verifyEmailToken
-    return c.json({message:"Email sent to user"})
+    return c.json({ message: "Email sent to user" })
 }
-export const verifyEmail=async (c:Context)=>{
-    const {emailToken}=await c.req.json();
-    const verifyEmailToken= await verify(emailToken,ACCESS_SECRET);
-    if(verifyEmailToken){
-        return c.json({message:"Emailverified"},200)
+export const verifyEmail = async (c: Context) => {
+    const { emailToken } = await c.req.json();
+    const verifyEmailToken = await verify(emailToken, ACCESS_SECRET);
+    if (verifyEmailToken) {
+        return c.json({ message: "Emailverified" }, 200)
     }
-    return c.json({message:"Not verified"},400)
+    return c.json({ message: "Not verified" }, 400)
 }
-
-
-
 
 export const purgeExpiredTokens = async (c: Context) => {
     const result = purgeExpiredTokensSchema.safeParse(await c.req.json());
@@ -177,6 +174,18 @@ export const logout = async (c: Context) => {
 
     return c.json({ "message": "Logged out successfully" }, 200)
 }
+
+export const onboardUser = async (c: Context) => {
+    console.log("onboard")
+    const { dbType, connectionString } = await c.req.json();
+  
+    try {
+      await createSchema(dbType, connectionString);
+      return c.json({ message: 'Schema created successfully' });
+    } catch (err: any) {
+      return c.json({ error: err.message }, 500);
+    }
+  };
 
 export const ping = async (c: Context) => {
     return c.json({ "message": "pining" })
