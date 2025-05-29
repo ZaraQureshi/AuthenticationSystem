@@ -10,6 +10,6 @@ export const errorMiddleware = (err: any, c: any) => {
     if (err instanceof UnprocessableError) return c.json({ error: err.message }, err.statusCode);
 
     console.error(err.stack);
-    c.json({ error: 'Something went wrong!', details: err.message }, 500);
+    return c.json({ error: 'Something went wrong!', details: err.message }, 500);
 };
 
