@@ -5,7 +5,7 @@
 // email parsing microservice
 import { Context, Hono } from "hono";
 import { sign, verify } from "jsonwebtoken";
-import { createSchema, db } from "./db";
+import { createSchema } from "./db";
 import { users, tokens } from "../src/drizzle/schema";
 import { and, eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -17,9 +17,10 @@ import { invalidateTokenForLogout, purgeExpiredTokensFromDB } from "./service";
 import { AuthError } from "./errors";
 
 dotenv.config();
-const app = new Hono();
 const ACCESS_SECRET = process.env.ACCESS_SECRET!;
 const REFRESH_SECRET = process.env.REFRESH_SECRET!;
+
+// const db=createSchema()
 
 const generateAccessToken = (user: any) => {
     // if (!ACCESS_SECRET) {
@@ -34,7 +35,7 @@ const generateRefreshToken = (user: any) => {
 
 // the Context is an object that represents everything related to the current HTTP request and response.
 export const registerUser = async (c: Context) => {
-
+    const db = await createSchema();
     const { email, password, username } = await c.req.json();
     // check if user already exists
     const existingUser = await getUserByEmail(email);
@@ -53,6 +54,8 @@ export const registerUser = async (c: Context) => {
     return c.json({ message: "Could not register." }, 400)
 }
 export const loginUser = async (c: Context) => {
+    const db = await createSchema();
+
     const body = await c.req.json();
 
     const result = loginSchema.safeParse(body);
@@ -80,6 +83,8 @@ export const loginUser = async (c: Context) => {
 }
 
 export const refreshToken = async (c: Context) => {
+    const db = await createSchema();
+
     const { refreshToken } = await c.req.json();
     try {
         const payload: any = verify(refreshToken, REFRESH_SECRET) as any;
@@ -93,6 +98,7 @@ export const refreshToken = async (c: Context) => {
 }
 
 export const forgotPassword = async (c: Context) => {
+    const db = await createSchema();
 
     const { email } = await c.req.json();
 
@@ -114,6 +120,8 @@ export const forgotPassword = async (c: Context) => {
 }
 
 export const resetPassword = async (c: Context) => {
+    const db = await createSchema();
+
     const { resetToken, newPassword } = await c.req.json();
     if (!resetToken || !newPassword) {
         return c.json({ message: 'Reset token and new password are required.' }, 400);
@@ -138,12 +146,16 @@ export const resetPassword = async (c: Context) => {
 }
 
 export const sentEmailVerification = async (c: Context) => {
+    const db = await createSchema();
+
     const { email } = await c.req.json();
     const EmailToken = await sign({ email }, ACCESS_SECRET, { expiresIn: '1h' });
     // send a link in email to user with the verifyEmailToken
     return c.json({ message: "Email sent to user" })
 }
 export const verifyEmail = async (c: Context) => {
+    const db = await createSchema();
+
     const { emailToken } = await c.req.json();
     const verifyEmailToken = await verify(emailToken, ACCESS_SECRET);
     if (verifyEmailToken) {
@@ -153,6 +165,8 @@ export const verifyEmail = async (c: Context) => {
 }
 
 export const purgeExpiredTokens = async (c: Context) => {
+    const db = await createSchema();
+
     const result = purgeExpiredTokensSchema.safeParse(await c.req.json());
     if (!result.success) return c.json({ error: result.error.flatten() }, 400);
     const { secret } = result.data;
@@ -165,6 +179,8 @@ export const purgeExpiredTokens = async (c: Context) => {
 
 
 export const logout = async (c: Context) => {
+    const db = await createSchema();
+
     const result = logoutSchema.safeParse(await c.req.json());
     if (!result.success) return c.json({ error: result.error.flatten() }, 400);
     const { userId, refreshToken } = result.data;
@@ -176,17 +192,18 @@ export const logout = async (c: Context) => {
 }
 
 export const onboardUser = async (c: Context) => {
+
     console.log("onboard")
     const { dbType, connectionString } = await c.req.json();
-  
+
     try {
-      await createSchema(dbType, connectionString);
-      return c.json({ message: 'Schema created successfully' });
+        await createSchema();
+        return c.json({ message: 'Schema created successfully' });
     } catch (err: any) {
-      return c.json({ error: err.message }, 500);
+        return c.json({ error: err.message }, 500);
     }
-  };
+};
 
 export const ping = async (c: Context) => {
     return c.json({ "message": "pining" })
-}
+} 

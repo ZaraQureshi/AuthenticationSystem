@@ -1,9 +1,10 @@
 import { Context } from "hono"
-import { db } from "../db"
+import { createSchema } from "../db"
 import { users } from "../drizzle/schema"
 import { getUserByEmail } from "../utils"
 
 export const emailVerification=async (c:Context)=>{
+
     const {email}=await c.req.json();
     const user=await getUserByEmail(email).then(res=>res[0]);
     console.log(user);
