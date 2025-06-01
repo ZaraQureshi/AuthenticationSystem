@@ -15,6 +15,8 @@ import { access } from "fs";
 import { getUserByEmail, loginSchema, logoutSchema, purgeExpiredTokensSchema } from "./utils";
 import { invalidateTokenForLogout, purgeExpiredTokensFromDB } from "./service";
 import { AuthError } from "./errors";
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+
 
 dotenv.config();
 const ACCESS_SECRET = process.env.ACCESS_SECRET!;
@@ -120,8 +122,8 @@ export const forgotPassword = async (c: Context) => {
 }
 
 export const resetPassword = async (c: Context) => {
-    const db = await createSchema();
-
+    const { db, type } = await createSchema();
+    let resetPassword;
     const { resetToken, newPassword } = await c.req.json();
     if (!resetToken || !newPassword) {
         return c.json({ message: 'Reset token and new password are required.' }, 400);
@@ -135,14 +137,17 @@ export const resetPassword = async (c: Context) => {
         const hashedNewPassord = await bcrypt.hash(newPassword, 10);
 
         if (existingUser.length === 1) {
-
-            const resetPassword = await db.update(users).set({ hashedPassword: hashedNewPassord }).where(eq(users.email, existingUser[0].email));
-
-            return c.json({ "message": "Password reset successfull" }, 200)
+            if (type === 'postgres') {
+                resetPassword = await db.update(db._.schema.users).set({ hashedPassword: hashedNewPassord }).where(eq(db._.schema.users.email, existingUser[0].email));
+            }
+        } else if (type === 'mysql') {
+            resetPassword = await db.select().from(db._.schema.users).where(eq(db._.schema.users.email, existingUser[0].email));
         }
+        return c.json({ "message": "Password reset successfull" }, 200)
+    
     } catch (error) {
-        return c.json({ "message": "Token expired" }, 401)
-    }
+    return c.json({ "message": "Token expired" }, 401)
+}
 }
 
 export const sentEmailVerification = async (c: Context) => {
@@ -192,12 +197,17 @@ export const logout = async (c: Context) => {
 }
 
 export const onboardUser = async (c: Context) => {
+    const { db, type } = await createSchema();
 
     console.log("onboard")
     const { dbType, connectionString } = await c.req.json();
 
     try {
-        await createSchema();
+        // const db = await createSchema();
+        if(type==='postgres'){
+
+            await migrate(db, { migrationsFolder: 'src/drizzle/migrations' });
+        }
         return c.json({ message: 'Schema created successfully' });
     } catch (err: any) {
         return c.json({ error: err.message }, 500);

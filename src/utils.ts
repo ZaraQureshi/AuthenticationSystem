@@ -25,9 +25,14 @@ export const purgeExpiredTokensSchema = z.object({
 });
  
 export const getUserByEmail = async (email: any) => {
-    const db= await createSchema();
+    const {db,type}= await createSchema();
+if(type==='postgres'){
 
-  return await db.select().from(users).where(eq(users.email, email));
+    return await db.select().from(db._.schema.users).where(eq(users.email, email));
+}else if(type==='mysql'){
+    return await db.select().from(db._.schema.users).where(eq(users.email, email));
+
+}
 }
 
 export const getUserById = async (id: any) => {
