@@ -6,7 +6,8 @@ export const users = pgTable("User", {
     email: text("email").notNull().unique(),
     hashedPassword: text("password").notNull(),
     role:text("role").notNull().default("user"),
-    isVerified:text("isVerified").notNull()
+    isVerified:boolean("isVerified").notNull().default(false),
+    isBlocked:boolean("isBlocked").notNull().default(false)
 })
 
 export const tokens = pgTable("Token", {

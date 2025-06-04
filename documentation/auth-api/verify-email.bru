@@ -1,0 +1,19 @@
+meta {
+  name: verify-email
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://localhost:3000/api/verify-email
+  body: json
+  auth: none
+}
+
+body:json {
+  {         
+    "email": "madam@persist.site",
+    "userId": 6,
+    "mode": "link"
+  }
+}

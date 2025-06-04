@@ -23,15 +23,26 @@ export const logoutSchema = z.object({
 export const purgeExpiredTokensSchema = z.object({
   secret: z.string().min(16),
 });
- 
+
+export const verifyEmailSchema = z.object({
+  email: z.string().email(),
+  userId: z.number(),
+  mode: z.string().max(5)
+});
 export const getUserByEmail = async (email: any) => {
-    const db= await createSchema();
+  const db = await createSchema();
 
   return await db.select().from(users).where(eq(users.email, email));
 }
 
+export const getUserByEmailAndId = async (email: string, id: number) => {
+  const db = await createSchema();
+
+  return await db.select().from(users).where(and(eq(users.email, email), eq(users.email, email)));
+}
+
 export const getUserById = async (id: any) => {
-    const db= await createSchema();
+  const db = await createSchema();
 
   return await db.select().from(users).where(eq(users.id, id));
 }
@@ -44,4 +55,3 @@ export const getExpiryFromToken = (token: string) => {
 }
 
 
- 

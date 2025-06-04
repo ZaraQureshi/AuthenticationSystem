@@ -2,6 +2,7 @@ import { eq, gte, lte } from "drizzle-orm";
 import { createSchema } from "./db"
 import { tokens } from "./drizzle/schema";
 import { getExpiryFromToken } from "./utils";
+import { sendVerificationEmail } from "./services/mailService";
 
 export const invalidateTokenForLogout = async (userId: number, token: string) => {
     const db=await createSchema();
@@ -35,3 +36,8 @@ export const purgeExpiredTokensFromDB = async (secret: string) => {
     
     const a = 0;
 }
+
+export const sendVerificationEmailToUser = async (email: string, token: string) => {
+    await sendVerificationEmail(email, token)
+}
+

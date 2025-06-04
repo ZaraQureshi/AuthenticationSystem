@@ -12,8 +12,8 @@ import bcrypt from "bcryptjs";
 import dotenv from 'dotenv';
 import { log } from "console";
 import { access } from "fs";
-import { getUserByEmail, loginSchema, logoutSchema, purgeExpiredTokensSchema } from "./utils";
-import { invalidateTokenForLogout, purgeExpiredTokensFromDB } from "./service";
+import { getUserByEmail, getUserByEmailAndId, loginSchema, logoutSchema, purgeExpiredTokensSchema, verifyEmailSchema } from "./utils";
+import { invalidateTokenForLogout, purgeExpiredTokensFromDB, sendVerificationEmailToUser } from "./service";
 import { AuthError } from "./errors";
 
 dotenv.config();
@@ -33,6 +33,16 @@ const generateRefreshToken = (user: any) => {
     return sign({ userId: user.email }, REFRESH_SECRET, { expiresIn: '7d' });
 }
 
+const generateResetToken = (email: string) => {
+    return sign({ email }, ACCESS_SECRET, { expiresIn: '1h' });
+}
+
+const generateVerificationToken = (data: any) => {
+    return sign(data, ACCESS_SECRET, { expiresIn: '1h' });
+}
+
+
+
 // the Context is an object that represents everything related to the current HTTP request and response.
 export const registerUser = async (c: Context) => {
     const db = await createSchema();
@@ -45,7 +55,7 @@ export const registerUser = async (c: Context) => {
     // create user
     // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = db.insert(users).values({ email, hashedPassword, username, isVerified: false }).returning();
+    const user = db.insert(users).values({ email, hashedPassword, username, isVerified: false, isBlockedL: false }).returning();
     const userdata = await user;
 
     if (userdata.length > 0) {
@@ -53,6 +63,7 @@ export const registerUser = async (c: Context) => {
     }
     return c.json({ message: "Could not register." }, 400)
 }
+
 export const loginUser = async (c: Context) => {
     const db = await createSchema();
 
@@ -109,11 +120,8 @@ export const forgotPassword = async (c: Context) => {
     const userFound = await getUserByEmail(email)
     // send email to the user
     let resetToken = "";
-    if (userFound.length === 1) {
+    if (userFound.length === 1) resetToken = generateResetToken(email);
 
-        resetToken = sign({ email }, ACCESS_SECRET, { expiresIn: '1h' });
-
-    }
     // For security, you might want to return the same message even if not found
     return c.json({ message: 'If this email is registered, you will receive a reset link', resetToken });
 
@@ -145,15 +153,25 @@ export const resetPassword = async (c: Context) => {
     }
 }
 
-export const sentEmailVerification = async (c: Context) => {
-    const db = await createSchema();
-
-    const { email } = await c.req.json();
-    const EmailToken = await sign({ email }, ACCESS_SECRET, { expiresIn: '1h' });
-    // send a link in email to user with the verifyEmailToken
-    return c.json({ message: "Email sent to user" })
-}
 export const verifyEmail = async (c: Context) => {
+    const db = await createSchema();
+    const result = verifyEmailSchema.safeParse(await c.req.json());
+    if (!result.success) return c.json({ error: result.error.flatten() }, 400);
+
+    const { email, userId, mode } = result.data;
+    const response = { message: "Email sent to user" }
+
+    const existingUser = await getUserByEmailAndId(email, userId);
+    if (existingUser.length < 1) return c.json(response); // security purpose
+
+    const emailToken = generateVerificationToken({ email, userId });
+    await sendVerificationEmailToUser(email, emailToken);
+
+    // send a link in email to user with the verifyEmailToken
+    return c.json(response)
+}
+
+export const confirmEmail = async (c: Context) => {
     const db = await createSchema();
 
     const { emailToken } = await c.req.json();
@@ -172,7 +190,6 @@ export const purgeExpiredTokens = async (c: Context) => {
     const { secret } = result.data;
 
     await purgeExpiredTokensFromDB(secret);
-    throw new AuthError();
 
     return c.json({ "message": "Complete" }, 200)
 }
