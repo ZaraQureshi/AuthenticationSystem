@@ -3,18 +3,15 @@
 // todo-identity token
 // valiadtion for request token
 // email parsing microservice
-import { Context, Hono } from "hono";
+import { Context } from "hono";
 import { sign, verify } from "jsonwebtoken";
 import { createSchema } from "./db";
-import { users, tokens } from "../src/drizzle/schema";
-import { and, eq } from "drizzle-orm";
+import { users } from "../src/drizzle/schema";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import dotenv from 'dotenv';
-import { log } from "console";
-import { access } from "fs";
-import { getUserByEmail, getUserByEmailAndId, loginSchema, logoutSchema, purgeExpiredTokensSchema, verifyEmailSchema } from "./utils";
+import { confirmEmailSchema, getUserByEmail, getUserByEmailAndId, loginSchema, logoutSchema, purgeExpiredTokensSchema, updateUserIsVerified, verifyEmailSchema } from "./utils";
 import { invalidateTokenForLogout, purgeExpiredTokensFromDB, sendVerificationEmailToUser } from "./service";
-import { AuthError } from "./errors";
 
 dotenv.config();
 const ACCESS_SECRET = process.env.ACCESS_SECRET!;
@@ -173,13 +170,16 @@ export const verifyEmail = async (c: Context) => {
 
 export const confirmEmail = async (c: Context) => {
     const db = await createSchema();
+    const result = confirmEmailSchema.safeParse(c.req.query());
+    if (!result.success) return c.json({ error: result.error.flatten() }, 400);
+    const { email } = result.data;
 
-    const { emailToken } = await c.req.json();
-    const verifyEmailToken = await verify(emailToken, ACCESS_SECRET);
-    if (verifyEmailToken) {
-        return c.json({ message: "Emailverified" }, 200)
-    }
-    return c.json({ message: "Not verified" }, 400)
+    const users = await getUserByEmail(email);
+    if (users.length < 1) return c.json({ message: "Email Verified" }, 400);
+
+    if (!users[0].isVerified) await updateUserIsVerified(email, true);
+
+    return c.json({ message: "Email Verified" }, 200)
 }
 
 export const purgeExpiredTokens = async (c: Context) => {

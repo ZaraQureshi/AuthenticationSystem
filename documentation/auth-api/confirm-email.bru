@@ -1,0 +1,17 @@
+meta {
+  name: confirm-email
+  type: http
+  seq: 7
+}
+
+get {
+  url: http://localhost:3000/api/confirm-email?email=madam@persist.site&token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1hZGFtQHBlcnNpc3Quc2l0ZSIsInVzZXJJZCI6NiwiaWF0IjoxNzQ5MTEwNDQ2LCJleHAiOjE3NDkxMTQwNDZ9.9GDvCvQ6rZFAjuDhtEO65CdcMIH1Jlapi_tdQal0ZQI&source=bruno
+  body: json
+  auth: none
+}
+
+params:query {
+  email: madam@persist.site
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im1hZGFtQHBlcnNpc3Quc2l0ZSIsInVzZXJJZCI6NiwiaWF0IjoxNzQ5MTEwNDQ2LCJleHAiOjE3NDkxMTQwNDZ9.9GDvCvQ6rZFAjuDhtEO65CdcMIH1Jlapi_tdQal0ZQI
+  source: bruno
+}

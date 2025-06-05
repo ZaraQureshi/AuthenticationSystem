@@ -1,14 +1,7 @@
 import { z } from "zod";
-import { createSchema} from "./db"
+import { createSchema } from "./db"
 import { users } from "./drizzle/schema";
 import { and, eq } from "drizzle-orm";
-import { refreshToken } from "./contoller";
-import {Pool as PgPool} from 'pg';
-import { drizzle } from "drizzle-orm/node-postgres";
-import { pgSchema } from "drizzle-orm/pg-core";
-import { create } from "domain";
-
-
 
 export const loginSchema = z.object({
   email: z.string().email(),
@@ -29,6 +22,13 @@ export const verifyEmailSchema = z.object({
   userId: z.number(),
   mode: z.string().max(5)
 });
+
+export const confirmEmailSchema = z.object({
+  email: z.string().email(),
+  token: z.string(),
+  requestSource: z.string().max(15),
+});
+
 export const getUserByEmail = async (email: any) => {
   const db = await createSchema();
 
@@ -45,6 +45,13 @@ export const getUserById = async (id: any) => {
   const db = await createSchema();
 
   return await db.select().from(users).where(eq(users.id, id));
+}
+
+export const updateUserIsVerified = async (email: string, value: boolean) => {
+  const db = await createSchema();
+  return await db.update(users)
+    .set({ isVerified: value })
+    .where(eq(users.email, email));
 }
 
 // get jwt expiry time as date from the actual string token
