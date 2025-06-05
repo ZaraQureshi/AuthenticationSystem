@@ -7,11 +7,14 @@ import dotenv from 'dotenv';
 import { MySqlDatabase } from 'drizzle-orm/mysql2';
 import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
 import { drizzle as drizzleMySQL } from 'drizzle-orm/mysql2';
+import { connect as connectMongo } from 'mongoose';
+import { MongoClient } from "mongodb";
 
 dotenv.config();
 
 const DB_TYPE = process.env.DB_TYPE!;
 const DATABASE_URL = process.env.DATABASE_URL!;
+const mongo = new MongoClient(DATABASE_URL);
 
 export const createSchema = async () => {
   const dbType = process.env.DB_TYPE;
@@ -30,12 +33,18 @@ export const createSchema = async () => {
     const pool = await mysql.createPool({ uri: connectionString });
     db = drizzleMySQL(pool, { schema: { users: mysqlSchema.users, tokens: mysqlSchema.tokens }, mode: "default" });
     return { db, type: 'mysql' as const };
-  } else {
+  }else if(dbType==="mongodb"){
+    await mongo.connect();
+    db = mongo.db();
+    return { db, type: 'mongo' as const }
+  }
+   else {
     throw new Error('Unsupported DB type');
   }
 };
 export type SupportedDB =
   | { db: ReturnType<typeof drizzlePg>; type: 'postgres' }
-  | { db: ReturnType<typeof drizzleMySQL>; type: 'mysql' };
+  | { db: ReturnType<typeof drizzleMySQL>; type: 'mysql' }
+  | { db: ReturnType<MongoClient['db']>; type: 'mongo' };
 
 
