@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { createSchema } from "./db"
 import { users as pgUser } from "./drizzle/schema";
-import { users as mysqlUser} from "./drizzle/mysqlSchema";
-
+import { users as mysqlUser } from "./drizzle/mysqlSchema";
+import { Collection } from "mongoose";
 import { and, eq } from "drizzle-orm";
 import { refreshToken } from "./contoller";
 import { Pool as PgPool } from 'pg';
@@ -28,13 +28,17 @@ export const purgeExpiredTokensSchema = z.object({
 
 export const getUserByEmail = async (email: any) => {
     const { db, type } = await createSchema();
-    
+
     if (type === 'postgres') {
 
         return await db.select().from(pgUser).where(eq(pgUser.email, email));
     } else if (type === 'mysql') {
         return await db.select().from(mysqlUser).where(eq(mysqlUser.email, email));
 
+    }
+    else if (type === 'mongo') {
+        const user = await db.collection('User').findOne({ email });
+        return user ? [user] : [];
     }
 }
 
