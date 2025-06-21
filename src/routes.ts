@@ -20,6 +20,7 @@ export const initializeRoutes = async () => {
 
         // Define routes that depend on UserController
         routes.get('/users', userController.getAllUsers);
+        routes.post('/login', userController.login);
     } catch (err) {
         console.error('Failed to initialize routes:', err);
         process.exit(1); // Exit the process if initialization fails
@@ -30,7 +31,6 @@ export const initializeRoutes = async () => {
 // routes.get('/users', userController.getAllUsers);
 
 routes.post('/register', registerUser);
-routes.post('/login', loginUser);
 routes.post('/logout', logout);
 routes.post('/refresh-token', refreshToken);
 routes.post('/forgot-password', emailVerification, forgotPassword);
