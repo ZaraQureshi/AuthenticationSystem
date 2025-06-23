@@ -1,8 +1,9 @@
 import { Context } from "hono";
 import { IUserRepository } from "../repository/IUserRepository";
 import { inject, injectable } from 'tsyringe';
-import bcrypt from "bcryptjs/umd/types";
+import bcrypt from "bcryptjs";
 import { generateAccessToken, generateRefreshToken } from "../utils";
+import { UserDTO } from "../model/User";
 
 @injectable()
 export class UserService {
@@ -34,4 +35,16 @@ export class UserService {
         return c.json({ accessToken, refreshToken });
     }
 
+    Register = async (username: string, email: string, password: string) => {
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user: UserDTO = { username, email,role: 'user', password: hashedPassword,isBlocked:false,isVerified:false };
+        try {
+
+            const registeredUser = this.userRepo.InsertUser(user)
+            return registeredUser;
+        } catch (e) {
+            console.log(e)
+        }
+    }
 }
