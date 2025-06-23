@@ -32,7 +32,7 @@ export class UserService {
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
 
-        return c.json({ accessToken, refreshToken });
+        return { accessToken, refreshToken };
     }
 
     Register = async (username: string, email: string, password: string) => {
@@ -46,5 +46,9 @@ export class UserService {
         } catch (e) {
             console.log(e)
         }
+    }
+    GetUserByEmail=async(email:string)=>{
+        const user=await this.userRepo.GetUserByEmail(email);
+        return user;
     }
 }
