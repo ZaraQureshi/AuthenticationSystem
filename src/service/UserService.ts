@@ -51,4 +51,10 @@ export class UserService {
         const user=await this.userRepo.GetUserByEmail(email);
         return user;
     }
+    UpdatePassword=async(email:string,password:string)=>{
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const updatedUser=await this.userRepo.UpdatePassword(email,hashedPassword);
+        return updatedUser;
+    }
 }
