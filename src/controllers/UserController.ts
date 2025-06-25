@@ -24,8 +24,7 @@ export class UserController {
             const login = await this.userService.Login(c);
             return c.json({ message: login })
         } catch (e) {
-            console.log(e)
-
+            return c.json({ message: "Invalid credentials" })
         }
     }
     register = async (c: Context) => {
@@ -57,10 +56,55 @@ export class UserController {
                 const resetToken = sign({ email }, ACCESS_SECRET, { expiresIn: '1h' })
                 return c.json({ message: "If you have registered, you will recieve an email", resetToken });
             }
-            return c.json({message:"Email does not exist"})
+            return c.json({ message: "Email does not exist" })
         } catch (e) {
             console.log(e)
         }
     }
+
+    resetPassword = async (c: Context) => {
+        const { resetToken, password } = await c.req.json();
+        // if(!resetToken||!password){
+        //     return c.json({message:"ResetToken and password are required"},400);
+
+        // }
+        const payload = await verify(resetToken, ACCESS_SECRET);
+        if (payload) {
+            const user = await this.userService.GetUserByEmail(payload.email);
+            if (user.length === 1) {
+
+                const updatedUser = await this.userService.UpdatePassword(payload.email, password);
+                if (updatedUser) {
+                    return c.json({ message: "Updated successfully" }, 200)
+                }
+            }
+            return c.json({ message: "Something went wrong" }, 404)
+
+        }
+        return c.json({ message: "Token expired" })
+
+    }
+
+    sentEmailVerification = async (c: Context) => {
+        const { email } = await c.req.json();
+        const user = await this.userService.GetUserByEmail(email);
+        if (user.length === 1) {
+            const verificationLink = sign({ email }, ACCESS_SECRET, { expiresIn: '1h' });
+            // send verification link to email
+            return c.json({ message: "If you have registered, you will recieve an email", verificationLink });
+
+        }
+        return c.json({ message: "Something went wrong" }, 404)
+    }
+
+    verifyEmail = async (c: Context) => {
+        const { emailToken } = await c.req.json();
+        const payload = verify(emailToken, ACCESS_SECRET);
+        if (payload) {
+            return c.json({ message: "Emailverified" }, 200)
+        }
+        return c.json({ message: "Not verified" }, 400)
+
+    } 
 
 }
