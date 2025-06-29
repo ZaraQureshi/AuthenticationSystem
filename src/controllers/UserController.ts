@@ -107,4 +107,12 @@ export class UserController {
 
     } 
 
+    logout=async(c:Context)=>{
+        const {email,refreshToken}=await c.req.json();
+        const user = await this.userService.GetUserByEmail(email);
+            if (user.length > 0) await this.userService.InvalidateTokenForLogout(email, refreshToken);
+        
+            return c.json({ "message": "Logged out successfully" }, 200)
+    }
+
 }
