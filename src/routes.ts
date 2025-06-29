@@ -27,6 +27,8 @@ export const initializeRoutes = async () => {
         routes.post('/reset-password', userController.resetPassword);
         routes.post('/verify-email',userController.verifyEmail);
         routes.post('/sent-email-verification',userController.sentEmailVerification);
+        routes.post('/purge-expired-tokens', userController.purgeExpiredTokens);
+        routes.post('/logout', logout);
     } catch (err) {
         console.error('Failed to initialize routes:', err);
         process.exit(1); // Exit the process if initialization fails
@@ -36,9 +38,7 @@ export const initializeRoutes = async () => {
 // const userController = container.resolve(UserController);
 // routes.get('/users', userController.getAllUsers);
 
-routes.post('/logout', logout);
 
-routes.post('/purge-expired-tokens', purgeExpiredTokens);
 routes.post('/onboard', onboardUser);
 // routes.get('/users', userController.getAllUsers);
 
