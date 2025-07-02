@@ -6,8 +6,8 @@ import { errorMiddleware } from "./middlewares/errorMiddleware"
 dotenv.config();
 const app = new Hono();
 (async () => {
-await initializeRoutes();
-app.route("/api", routes);
-app.onError(errorMiddleware);
+    await initializeRoutes();
+    app.route("/api", routes);
+    app.onError(errorMiddleware);
 })();
 export default app;

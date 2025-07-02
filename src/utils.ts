@@ -4,13 +4,21 @@ import { users as pgUser } from "./drizzle/schema";
 import { users as mysqlUser } from "./drizzle/mysqlSchema";
 import { Collection } from "mongoose";
 import { and, eq } from "drizzle-orm";
-import { refreshToken } from "./contoller";
 import { Pool as PgPool } from 'pg';
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pgSchema } from "drizzle-orm/pg-core";
 import { create } from "domain";
+import { sign } from "jsonwebtoken";
+import dotenv from 'dotenv';
+dotenv.config();
+export const ACCESS_SECRET = process.env.ACCESS_SECRET!;
+export const REFRESH_SECRET = process.env.REFRESH_SECRET!;
 
-
+export const registerSchema = z.object({
+    email: z.string().email(),
+    username:z.string().min(3),
+    password: z.string().min(4),
+});
 
 export const loginSchema = z.object({
     email: z.string().email(),
@@ -25,28 +33,17 @@ export const logoutSchema = z.object({
 export const purgeExpiredTokensSchema = z.object({
     secret: z.string().min(16),
 });
-
-export const getUserByEmail = async (email: any) => {
-    const { db, type } = await createSchema();
-
-    if (type === 'postgres') {
-
-        return await db.select().from(pgUser).where(eq(pgUser.email, email));
-    } else if (type === 'mysql') {
-        return await db.select().from(mysqlUser).where(eq(mysqlUser.email, email));
-
-    }
-    else if (type === 'mongo') {
-        const user = await db.collection('User').findOne({ email });
-        return user ? [user] : [];
-    }
+export const generateAccessToken = (user: any) => {
+    return sign({ email: user.email, role: user.role }, ACCESS_SECRET, { expiresIn: '15m' });
 }
 
-export const getUserById = async (id: any) => {
-    const db = await createSchema();
+export const generateRefreshToken = (user: any) => {
 
-    return await db.select().from(users).where(eq(users.id, id));
+    return sign({ email: user.email }, REFRESH_SECRET, { expiresIn: '7d' });
 }
+
+
+
 
 // get jwt expiry time as date from the actual string token
 export const getExpiryFromToken = (token: string) => {

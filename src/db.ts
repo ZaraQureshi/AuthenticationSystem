@@ -14,7 +14,10 @@ dotenv.config();
 
 const DB_TYPE = process.env.DB_TYPE!;
 const DATABASE_URL = process.env.DATABASE_URL!;
-const mongo = new MongoClient(DATABASE_URL);
+if(DB_TYPE==='mongo'){
+
+  const mongo = new MongoClient(DATABASE_URL);
+}
 
 export const createSchema = async () => {
   const dbType = process.env.DB_TYPE;
@@ -34,8 +37,8 @@ export const createSchema = async () => {
     db = drizzleMySQL(pool, { schema: { users: mysqlSchema.users, tokens: mysqlSchema.tokens }, mode: "default" });
     return { db, type: 'mysql' as const };
   }else if(dbType==="mongodb"){
-    await mongo.connect();
-    db = mongo.db();
+    // await mongo.connect();
+    // db = mongo.db();
     return { db, type: 'mongo' as const }
   }
    else {

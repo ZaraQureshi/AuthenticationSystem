@@ -25,9 +25,13 @@
     "drizzle-kit": "^0.31.1",
     "drizzle-orm": "^0.42.0",
     "hono": "^4.7.7",
+    "ioredis": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.15.1",
     "mysql2": "^3.14.1",
     "pg": "^8.14.1",
+    "reflect-metadata": "^0.2.2",
+    "tsyringe": "^4.10.0",
     "zod": "^3.24.3"
   },
   "devDependencies": {
