@@ -4,6 +4,7 @@ import { UserDTO } from "../model/User";
 import { IUserRepository } from "./IUserRepository";
 import { eq, lte } from "drizzle-orm";
 import { TokenDTO } from "../model/Token";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 
 @injectable()
 export class PgUserRepository implements IUserRepository {
@@ -53,5 +54,9 @@ export class PgUserRepository implements IUserRepository {
         return await this.db
             .delete(tokens)
             .where(lte(tokens.expiryDate, new Date().toISOString()));
+    }
+
+    async MigrateDB():Promise<any>{
+        await migrate(this.db, { migrationsFolder: 'src/drizzle/migrations' });
     }
 }
