@@ -10,5 +10,7 @@ export interface IUserRepository {
     UpdatePassword(email:string,password:string):Promise<any>;
     GetByToken(token:string):Promise<any>;
     InsertToken(token:TokenDTO):Promise<any>;
-    DeleteToken(expiryDate:string):Promise<any>;
+    DeleteToken():Promise<any>;
+    MigrateDB():Promise<any>;
+
 }
