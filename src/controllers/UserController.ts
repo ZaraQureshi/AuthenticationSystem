@@ -2,8 +2,7 @@ import { inject, injectable } from "tsyringe";
 import { UserService } from "../service/UserService";
 import { Context } from "hono";
 import { sign, verify } from "jsonwebtoken";
-import { ACCESS_SECRET, generateAccessToken, purgeExpiredTokensSchema, REFRESH_SECRET } from "../utils";
-import { purgeExpiredTokensFromDB } from "../service";
+import { ACCESS_SECRET, generateAccessToken, purgeExpiredTokensSchema, REFRESH_SECRET, registerSchema } from "../utils";
 import { AuthError } from "../errors";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 @injectable()
@@ -13,15 +12,16 @@ export class UserController {
 
     }
 
-    getAllUsers = async () => {
+    getAllUsers = async (c: Context) => {
         try {
             const users = await this.userService.GetAllUsers();
-            console.log(users)
+            return c.json(users, 200);
+        } catch (e) {
+            console.error(e);
+            return c.json({ message: 'Failed to fetch users' }, 500);
         }
-        catch (e) {
-            console.log(e)
-        }
-    }
+    };
+
     login = async (c: Context) => {
         try {
             const login = await this.userService.Login(c);
@@ -31,25 +31,31 @@ export class UserController {
         }
     }
     register = async (c: Context) => {
-        const { username, email, password } = await c.req.json();
+        const result = registerSchema.safeParse(await c.req.json());
+        if (!result.success) {
+            return c.json({ error: result.error.flatten() }, 400);
+        }
+
+        const { username, email, password } = result.data;
         try {
             const registeredUser = await this.userService.Register(username, email, password);
-
+            return c.json(registeredUser, 201);
         } catch (e) {
-            console.log(e);
+            console.error(e);
+            return c.json({ message: 'Failed to register user' }, 500);
         }
-    }
+    };
     refreshToken = async (c: Context) => {
         const { refreshToken } = await c.req.json();
         try {
             const payload = verify(refreshToken, REFRESH_SECRET);
             const accessToken = generateAccessToken(payload);
-            return c.json({ accessToken })
+            return c.json({ accessToken });
+        } catch (ex) {
+            console.error(ex);
+            return c.json({ message: 'Invalid refresh token' }, 401);
         }
-        catch (ex) {
-            return c.json({ "message": "Invalid refresh token" }, 401)
-        }
-    }
+    };
 
     forgotPassword = async (c: Context) => {
         const { email } = await c.req.json();
@@ -61,7 +67,8 @@ export class UserController {
             }
             return c.json({ message: "Email does not exist" })
         } catch (e) {
-            console.log(e)
+            console.error(e);
+            return c.json({ message: 'Failed to process request' }, 500);
         }
     }
 
@@ -75,7 +82,7 @@ export class UserController {
         if (payload) {
             const user = await this.userService.GetUserByEmail(payload.email);
             if (user.length === 1) {
-
+                console.log('User fetched:', { id: user.id, email: user.email });
                 const updatedUser = await this.userService.UpdatePassword(payload.email, password);
                 if (updatedUser) {
                     return c.json({ message: "Updated successfully" }, 200)
@@ -113,16 +120,21 @@ export class UserController {
     logout = async (c: Context) => {
         const { email, refreshToken } = await c.req.json();
         const user = await this.userService.GetUserByEmail(email);
-        if (user.length > 0) await this.userService.InvalidateTokenForLogout(user[0].id, refreshToken);
 
-        return c.json({ "message": "Logged out successfully" }, 200)
-    }
+        if (!user) {
+            return c.json({ message: 'User not found' }, 404);
+        }
+
+        await this.userService.InvalidateTokenForLogout(user.id, refreshToken);
+        return c.json({ message: 'Logged out successfully' }, 200);
+    };
+
     purgeExpiredTokens = async (c: Context) => {
         const result = purgeExpiredTokensSchema.safeParse(await c.req.json());
         if (!result.success) return c.json({ error: result.error.flatten() }, 400);
         const { secret } = result.data;
 
-        await purgeExpiredTokensFromDB(secret);
+        await this.userService.PurgeExpiredTokensFromDB(secret);
         throw new AuthError();
 
         return c.json({ "message": "Complete" }, 200)
