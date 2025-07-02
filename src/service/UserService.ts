@@ -2,8 +2,9 @@ import { Context } from "hono";
 import { IUserRepository } from "../repository/IUserRepository";
 import { inject, injectable } from 'tsyringe';
 import bcrypt from "bcryptjs";
-import { generateAccessToken, generateRefreshToken } from "../utils";
+import { generateAccessToken, generateRefreshToken, getExpiryFromToken } from "../utils";
 import { UserDTO } from "../model/User";
+import { TokenDTO } from "../model/Token";
 
 @injectable()
 export class UserService {
@@ -57,4 +58,30 @@ export class UserService {
         const updatedUser=await this.userRepo.UpdatePassword(email,hashedPassword);
         return updatedUser;
     }
+    InvalidateTokenForLogout = async (userId: number, token: string) => {
+        const expiry = getExpiryFromToken(token);
+    
+        const existingTokens = await this.userRepo.GetByToken(token);
+        if (existingTokens.length !== 0) return { message: "Token not found" };
+        const tokens:TokenDTO={userId: userId,
+            available: false,
+            blocked: false,
+            token,
+            expiryDate: expiry,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()}
+        return await this.userRepo.InsertToken(tokens);
+        
+    }
+    PurgeExpiredTokensFromDB = async (secret: string) => {
+        // todo: better security
+    
+        if (secret !== process.env.PURGE_SECRET) return;
+        return this.userRepo.DeleteToken();
+        
+    }
+    MigrateDB=async()=>{
+        return await this.userRepo.MigrateDB();
+    }
+
 }

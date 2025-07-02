@@ -2,7 +2,10 @@ import { inject, injectable } from "tsyringe";
 import { UserService } from "../service/UserService";
 import { Context } from "hono";
 import { sign, verify } from "jsonwebtoken";
-import { ACCESS_SECRET, generateAccessToken, REFRESH_SECRET } from "../utils";
+import { ACCESS_SECRET, generateAccessToken, purgeExpiredTokensSchema, REFRESH_SECRET } from "../utils";
+import { purgeExpiredTokensFromDB } from "../service";
+import { AuthError } from "../errors";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 @injectable()
 export class UserController {
     constructor(@inject('UserService') private userService: UserService
@@ -105,14 +108,44 @@ export class UserController {
         }
         return c.json({ message: "Not verified" }, 400)
 
-    } 
-
-    logout=async(c:Context)=>{
-        const {email,refreshToken}=await c.req.json();
-        const user = await this.userService.GetUserByEmail(email);
-            if (user.length > 0) await this.userService.InvalidateTokenForLogout(email, refreshToken);
-        
-            return c.json({ "message": "Logged out successfully" }, 200)
     }
+
+    logout = async (c: Context) => {
+        const { email, refreshToken } = await c.req.json();
+        const user = await this.userService.GetUserByEmail(email);
+        if (user.length > 0) await this.userService.InvalidateTokenForLogout(user[0].id, refreshToken);
+
+        return c.json({ "message": "Logged out successfully" }, 200)
+    }
+    purgeExpiredTokens = async (c: Context) => {
+        const result = purgeExpiredTokensSchema.safeParse(await c.req.json());
+        if (!result.success) return c.json({ error: result.error.flatten() }, 400);
+        const { secret } = result.data;
+
+        await purgeExpiredTokensFromDB(secret);
+        throw new AuthError();
+
+        return c.json({ "message": "Complete" }, 200)
+    }
+
+    onboardUser = async (c: Context) => {
+
+        console.log("onboard")
+        const { dbType, connectionString } = await c.req.json();
+
+        try {
+            // const db = await createSchema();
+
+
+            const migrated = await this.userService.MigrateDB();
+            if (migrated) {
+
+                return c.json({ message: 'Schema created successfully' });
+            }
+        } catch (err: any) {
+            return c.json({ error: err.message }, 500);
+        }
+    };
+
 
 }
