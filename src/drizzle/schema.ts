@@ -1,12 +1,13 @@
-import { pgTable, text, serial, boolean, bigint } from "drizzle-orm/pg-core"
+import { pgTable, text, serial, boolean, bigint, bigserial } from "drizzle-orm/pg-core"
 
 export const users = pgTable("User", {
-    id: serial("id").primaryKey(),
+    id: bigserial({ mode: 'number' }).primaryKey(),
     username: text("username").notNull(),
     email: text("email").notNull().unique(),
     hashedPassword: text("password").notNull(),
     role:text("role").notNull().default("user"),
-    isVerified:text("isVerified").notNull()
+    isVerified:text("isVerified").notNull(),
+    isBlocked:boolean("isBlocked").notNull()
 })
 
 export const tokens = pgTable("Token", {
@@ -19,3 +20,8 @@ export const tokens = pgTable("Token", {
     createdAt: text("createdAt").notNull(),
     updatedAt: text("updatedAt").notNull(),
 })
+
+// export const pgSchema = {
+//     users,
+//     tokens,
+//   };

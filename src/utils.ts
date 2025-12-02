@@ -1,47 +1,55 @@
 import { z } from "zod";
-import { createSchema} from "./db"
-import { users } from "./drizzle/schema";
+import { createSchema } from "./db"
+import { users as pgUser } from "./drizzle/schema";
+import { users as mysqlUser } from "./drizzle/mysqlSchema";
+import { Collection } from "mongoose";
 import { and, eq } from "drizzle-orm";
-import { refreshToken } from "./contoller";
-import {Pool as PgPool} from 'pg';
+import { Pool as PgPool } from 'pg';
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pgSchema } from "drizzle-orm/pg-core";
 import { create } from "domain";
+import { sign } from "jsonwebtoken";
+import dotenv from 'dotenv';
+dotenv.config();
+export const ACCESS_SECRET = process.env.ACCESS_SECRET!;
+export const REFRESH_SECRET = process.env.REFRESH_SECRET!;
 
-
+export const registerSchema = z.object({
+    email: z.string().email(),
+    username:z.string().min(3),
+    password: z.string().min(4),
+});
 
 export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(4),
+    email: z.string().email(),
+    password: z.string().min(4),
 });
 
 export const logoutSchema = z.object({
-  userId: z.number(),
-  refreshToken: z.string(),
+    userId: z.number(),
+    refreshToken: z.string(),
 });
 
 export const purgeExpiredTokensSchema = z.object({
-  secret: z.string().min(16),
+    secret: z.string().min(16),
 });
- 
-export const getUserByEmail = async (email: any) => {
-    const db= await createSchema();
-
-  return await db.select().from(users).where(eq(users.email, email));
+export const generateAccessToken = (user: any) => {
+    return sign({ email: user.email, role: user.role }, ACCESS_SECRET, { expiresIn: '15m' });
 }
 
-export const getUserById = async (id: any) => {
-    const db= await createSchema();
+export const generateRefreshToken = (user: any) => {
 
-  return await db.select().from(users).where(eq(users.id, id));
+    return sign({ email: user.email }, REFRESH_SECRET, { expiresIn: '7d' });
 }
+
+
+
 
 // get jwt expiry time as date from the actual string token
 export const getExpiryFromToken = (token: string) => {
-  const payload = token.split(".")[1];
-  const decodedPayload = JSON.parse(atob(payload));
-  return new Date(decodedPayload.exp * 1000).toISOString();
+    const payload = token.split(".")[1];
+    const decodedPayload = JSON.parse(atob(payload));
+    return new Date(decodedPayload.exp * 1000).toISOString();
 }
 
 
- 
