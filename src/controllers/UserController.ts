@@ -7,7 +7,7 @@ import { AuthError } from "../errors";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 @injectable()
 export class UserController {
-    constructor(@inject('UserService') private userService: UserService
+    constructor(@inject(UserService) private userService: UserService
     ) {
 
     }
