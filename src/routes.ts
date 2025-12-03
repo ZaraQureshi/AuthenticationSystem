@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { initializeDI } from './container/DI'; // Import the DI initialization function
 
-import './container/DI.ts'; // <-- Import this BEFORE resolving from container
+// import './container/DI.ts'; // <-- Import this BEFORE resolving from container
 import { container } from 'tsyringe';
 
 import { emailVerification } from './middlewares/authMiddleware';
@@ -12,7 +12,7 @@ let userController;
 export const initializeRoutes = async () => {
     try {
         // Wait for DI initialization to complete
-        await initializeDI;
+        await initializeDI();
 
         // Resolve the UserController after DI is initialized
     userController = container.resolve(UserController);
@@ -35,10 +35,5 @@ export const initializeRoutes = async () => {
     }
 };
 
-// const userController = container.resolve(UserController);
-// routes.get('/users', userController.getAllUsers);
-
-
-// routes.get('/users', userController.getAllUsers);
 
 export default routes;
