@@ -6,26 +6,31 @@ import { UserService } from '../service/UserService';
 import { IUserRepository } from '../repository/IUserRepository';
 import { UserController } from '../controllers/UserController';
 import { createSchema } from '../db';
+import { MongoUserRepository } from '../repository/MongoUserRepository';
 
 export async function initializeDI() {
     const { db, type } = await createSchema();
-
     const dbType = type;
+    console.log("DB Type in DI:", dbType);
     if (dbType === 'postgres') {
-        container.register<IUserRepository>('IUserRepository', {
-            useClass: PgUserRepository,
-        });
-    } else {
+        console.log("Registering PgUserRepository for Postgres");
+        container.registerSingleton<IUserRepository>("IUserRepository",PgUserRepository);
+    }
+    // else if (dbType === 'mysql') {
+    //     container.registerSingleton<IUserRepository>("IUserRepository",PgUserRepository);
+    // }
+    else if (dbType == 'mongo') {
+                console.log("Registering PgUserRepository for mongo");
+
+        // You would create and register a MongoUserRepository here
+        container.registerSingleton<IUserRepository>("IUserRepository",MongoUserRepository);
+    }
+    else {
         throw new Error(`Unsupported DB_TYPE: ${dbType}`);
     }
 
-    container.register('UserService', { useClass: UserService });
-    container.register('UserController', { useClass: UserController });
+ container.registerSingleton(UserService);
+    container.registerSingleton(UserController);
     container.register('Database', { useValue: db }); // 👈 Register the database
 }
 
-// Call the initialization function
-initializeDI().catch((err) => {
-    console.error('Failed to initialize dependency injection:', err);
-    process.exit(1); // Exit the process if DI initialization fails
-});
