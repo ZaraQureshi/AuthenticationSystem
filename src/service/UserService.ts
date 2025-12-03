@@ -8,7 +8,7 @@ import { TokenDTO } from "../model/Token";
 
 @injectable()
 export class UserService {
-    constructor(@inject('IUserRepository') private userRepo: IUserRepository) { }
+    constructor(@inject("IUserRepository") private userRepo: IUserRepository) { }
 
     async GetAllUsers() {
         const user = await this.userRepo.GetAllUsers();

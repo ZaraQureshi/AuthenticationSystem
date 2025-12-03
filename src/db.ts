@@ -14,7 +14,8 @@ dotenv.config();
 
 const DB_TYPE = process.env.DB_TYPE!;
 const DATABASE_URL = process.env.DATABASE_URL!;
-if(DB_TYPE==='mongo'){
+console.log("DB_TYPE:", DB_TYPE);
+if (DB_TYPE === 'mongo') {
 
   const mongo = new MongoClient(DATABASE_URL);
 }
@@ -36,12 +37,13 @@ export const createSchema = async () => {
     const pool = await mysql.createPool({ uri: connectionString });
     db = drizzleMySQL(pool, { schema: { users: mysqlSchema.users, tokens: mysqlSchema.tokens }, mode: "default" });
     return { db, type: 'mysql' as const };
-  }else if(dbType==="mongodb"){
-    // await mongo.connect();
-    // db = mongo.db();
+  } else if (dbType === "mongo") {
+    const mongo = new MongoClient(DATABASE_URL);
+    await mongo.connect();
+    db = mongo.db();
     return { db, type: 'mongo' as const }
   }
-   else {
+  else {
     throw new Error('Unsupported DB type');
   }
 };
