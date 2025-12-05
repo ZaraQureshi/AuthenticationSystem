@@ -4,7 +4,6 @@ import { initializeDI } from './container/DI'; // Import the DI initialization f
 // import './container/DI.ts'; // <-- Import this BEFORE resolving from container
 import { container } from 'tsyringe';
 
-import { emailVerification } from './middlewares/authMiddleware';
 import { UserController } from './controllers/UserController';
 
 const routes = new Hono();

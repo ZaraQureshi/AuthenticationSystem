@@ -3,7 +3,7 @@
         "target": "ES2020",
         "module": "ESNext",
         "outDir": "./dist", // 👈 All JS files will go into ./dist
-        "rootDir": "./src", // 👈 Where your .ts files are
+        "rootDir": ".", // 👈 Use project root so files like drizzle.config.ts are emitted
         "moduleResolution": "node",
         "esModuleInterop": true,
         "strict": true,
@@ -11,6 +11,7 @@
         "forceConsistentCasingInFileNames": true,
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
+        "sourceMap": true
     },
     "include": [
         "src",
