@@ -1,8 +1,8 @@
 import { inject, injectable } from "tsyringe";
 import { UserService } from "../service/UserService";
 import { Context } from "hono";
-import { sign, verify } from "jsonwebtoken";
-import { ACCESS_SECRET, generateAccessToken, purgeExpiredTokensSchema, REFRESH_SECRET, registerSchema } from "../utils";
+import { sign, verify, JwtPayload } from "jsonwebtoken";
+import { ACCESS_SECRET, generateAccessToken, purgeExpiredTokensSchema, REFRESH_SECRET, registerSchema } from "../utility/utils";
 import { AuthError } from "../errors";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 @injectable()
@@ -26,9 +26,9 @@ export class UserController {
         try {
             const login = await this.userService.Login(c);
             return c.json({ message: login })
-        } catch (e) {
-            return c.json({ message: "Invalid credentials" })
-        }
+        } catch (e:any) {
+            console.error(e);
+            return c.json({ message: e.message }, 401); }
     }
     register = async (c: Context) => {
         const result = registerSchema.safeParse(await c.req.json());
@@ -40,17 +40,20 @@ export class UserController {
         try {
             const registeredUser = await this.userService.Register(username, email, password);
             return c.json(registeredUser, 201);
-        } catch (e) {
+        } catch (e:any) {
             console.error(e);
-            return c.json({ message: 'Failed to register user' }, 500);
+            return c.json({message:e.message}, 500);
         }
     };
     refreshToken = async (c: Context) => {
         const { refreshToken } = await c.req.json();
         try {
             const payload = verify(refreshToken, REFRESH_SECRET);
-            const accessToken = generateAccessToken(payload);
-            return c.json({ accessToken });
+            if (typeof payload === 'object' && payload && 'email' in payload) {
+                const accessToken = generateAccessToken(payload as JwtPayload);
+                return c.json({ accessToken });
+            }
+            return c.json({ message: 'Invalid refresh token payload' }, 401);
         } catch (ex) {
             console.error(ex);
             return c.json({ message: 'Invalid refresh token' }, 401);
@@ -78,20 +81,25 @@ export class UserController {
         //     return c.json({message:"ResetToken and password are required"},400);
 
         // }
-        const payload = await verify(resetToken, ACCESS_SECRET);
-        if (payload) {
-            const user = await this.userService.GetUserByEmail(payload.email);
-            if (user.length === 1) {
-                console.log('User fetched:', { id: user.id, email: user.email });
-                const updatedUser = await this.userService.UpdatePassword(payload.email, password);
-                if (updatedUser) {
-                    return c.json({ message: "Updated successfully" }, 200)
+        try {
+            const payload = verify(resetToken, ACCESS_SECRET);
+            if (typeof payload === 'object' && payload && 'email' in payload) {
+                const email = (payload as JwtPayload).email as string;
+                const user = await this.userService.GetUserByEmail(email);
+                if (user.length === 1) {
+                    console.log('User fetched:', { id: user.id, email: user.email });
+                    const updatedUser = await this.userService.UpdatePassword(email, password);
+                    if (updatedUser) {
+                        return c.json({ message: "Updated successfully" }, 200)
+                    }
                 }
+                return c.json({ message: "Something went wrong" }, 404)
             }
-            return c.json({ message: "Something went wrong" }, 404)
-
+            return c.json({ message: "Token expired or invalid" }, 401)
+        } catch (ex) {
+            console.error(ex);
+            return c.json({ message: "Token expired or invalid" }, 401)
         }
-        return c.json({ message: "Token expired" })
 
     }
 
@@ -109,11 +117,16 @@ export class UserController {
 
     verifyEmail = async (c: Context) => {
         const { emailToken } = await c.req.json();
-        const payload = verify(emailToken, ACCESS_SECRET);
-        if (payload) {
-            return c.json({ message: "Emailverified" }, 200)
+        try {
+            const payload = verify(emailToken, ACCESS_SECRET);
+            if (typeof payload === 'object' && payload && 'email' in payload) {
+                return c.json({ message: "Email verified" }, 200)
+            }
+            return c.json({ message: "Not verified" }, 400)
+        } catch (ex) {
+            console.error(ex);
+            return c.json({ message: "Not verified" }, 400)
         }
-        return c.json({ message: "Not verified" }, 400)
 
     }
 
