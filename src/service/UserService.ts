@@ -30,7 +30,6 @@ export class UserService {
         const user = userExists[0];
         // check if password is correct
         const checkPassword = await bcrypt.compare(password, user.hashedPassword);
-        console.log("Checkpassword:",checkPassword);
         if (!checkPassword) {
             throw new AuthError('Invalid credentials');
         }
@@ -58,8 +57,13 @@ export class UserService {
         }
     }
     GetUserByEmail = async (email: string) => {
-        const user = await this.userRepo.GetUserByEmail(email);
-        return user;
+        try {
+            const user = await this.userRepo.GetUserByEmail(email);
+            return user;
+        }
+        catch (e) {
+            throw new AuthError(e as any);
+        }
     }
     UpdatePassword = async (email: string, password: string) => {
         const hashedPassword = await bcrypt.hash(password, 10);
