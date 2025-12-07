@@ -73,13 +73,15 @@ export class UserService {
     }
     InvalidateTokenForLogout = async (userId: number, token: string) => {
         const expiry = getExpiryFromToken(token);
-
+        console.log("Expiry date:", expiry);
         const existingTokens = await this.userRepo.GetByToken(token);
-        if (existingTokens.length !== 0) return { message: "Token not found" };
+        console.log("Existing tokens:", existingTokens);
+
+        if (existingTokens.length === 0) return { message: "Token not found" };
         const tokens: TokenDTO = {
             userId: userId,
             available: false,
-            blocked: false,
+            blocked: true,
             token,
             expiryDate: expiry,
             createdAt: new Date().toISOString(),
@@ -90,9 +92,21 @@ export class UserService {
     }
     PurgeExpiredTokensFromDB = async (secret: string) => {
         // todo: better security
-
-        if (secret !== process.env.PURGE_SECRET) return;
-        return this.userRepo.DeleteToken();
+        console.log("Purge secret:", secret);
+        console.log("Env purge secret:", process.env.PURGE_SECRET);
+        if (secret !== process.env.PURGE_SECRET) 
+            console.error("Invalid purge secret");
+        else{
+            console.log("Purge secret validated");
+        }
+        try{
+            const deletedToken=await this.userRepo.DeleteToken();
+            console.log("Deleted tokens:", deletedToken);
+            return deletedToken; 
+        }catch(e){
+            throw new AuthError("Failed to purge tokens")
+            ;
+        }
 
     }
     MigrateDB = async () => {
