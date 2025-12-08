@@ -1,5 +1,5 @@
 import { Context } from 'hono';
-import { AuthError, DatabaseError, PermissionError, RequestError, UnprocessableError } from '../errors';
+import { AuthError, DatabaseError, PermissionError, RequestError, UnprocessableError } from '../utility/errors';
 
 export const errorMiddleware = (err: any, c: any) => {
 

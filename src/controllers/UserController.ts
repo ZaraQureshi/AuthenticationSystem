@@ -3,7 +3,7 @@ import { UserService } from "../service/UserService";
 import { Context } from "hono";
 import { sign, verify, JwtPayload } from "jsonwebtoken";
 import { ACCESS_SECRET, generateAccessToken, purgeExpiredTokensSchema, REFRESH_SECRET, registerSchema } from "../utility/utils";
-import { AuthError } from "../errors";
+import { AuthError } from "../utility/errors";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import bcrypt from "bcryptjs";
 @injectable()

@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { generateAccessToken, generateRefreshToken, getExpiryFromToken } from "../utility/utils";
 import { UserDTO } from "../model/User";
 import { TokenDTO } from "../model/Token";
-import { AuthError } from "../errors";
+import { AuthError } from "../utility/errors";
 
 @injectable()
 export class UserService {
