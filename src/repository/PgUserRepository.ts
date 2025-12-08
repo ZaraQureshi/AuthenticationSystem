@@ -59,4 +59,5 @@ export class PgUserRepository implements IUserRepository {
     async MigrateDB():Promise<any>{
         await migrate(this.db, { migrationsFolder: 'src/drizzle/migrations' });
     }
+    
 }
