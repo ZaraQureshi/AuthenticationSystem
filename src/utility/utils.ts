@@ -23,7 +23,7 @@ export const logoutSchema = z.object({
 });
 
 export const purgeExpiredTokensSchema = z.object({
-    secret: z.string().min(16),
+    secret: z.string().min(0),
 });
 export const generateAccessToken = (user: any) => {
     return sign({ email: user.email, role: user.role }, ACCESS_SECRET, { expiresIn: '15m' });

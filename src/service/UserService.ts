@@ -5,8 +5,6 @@ import bcrypt from "bcryptjs";
 import { generateAccessToken, generateRefreshToken, getExpiryFromToken } from "../utility/utils";
 import { UserDTO } from "../model/User";
 import { TokenDTO } from "../model/Token";
-import { any } from "zod";
-import logger from "../utility/logger";
 import { AuthError } from "../errors";
 
 @injectable()
@@ -73,9 +71,7 @@ export class UserService {
     }
     InvalidateTokenForLogout = async (userId: number, token: string) => {
         const expiry = getExpiryFromToken(token);
-        console.log("Expiry date:", expiry);
         const existingTokens = await this.userRepo.GetByToken(token);
-        console.log("Existing tokens:", existingTokens);
 
         if (existingTokens.length === 0) return { message: "Token not found" };
         const tokens: TokenDTO = {
@@ -92,20 +88,15 @@ export class UserService {
     }
     PurgeExpiredTokensFromDB = async (secret: string) => {
         // todo: better security
-        console.log("Purge secret:", secret);
-        console.log("Env purge secret:", process.env.PURGE_SECRET);
-        if (secret !== process.env.PURGE_SECRET) 
-            console.error("Invalid purge secret");
-        else{
-            console.log("Purge secret validated");
-        }
-        try{
-            const deletedToken=await this.userRepo.DeleteToken();
-            console.log("Deleted tokens:", deletedToken);
-            return deletedToken; 
-        }catch(e){
-            throw new AuthError("Failed to purge tokens")
-            ;
+
+        if (secret !== process.env.PURGE_SECRET)
+            throw new AuthError("Unauthorized to purge tokens");
+
+        try {
+            const deletedToken = await this.userRepo.DeleteToken();
+            return deletedToken;
+        } catch (e) {
+            throw new AuthError("Failed to purge tokens");
         }
 
     }

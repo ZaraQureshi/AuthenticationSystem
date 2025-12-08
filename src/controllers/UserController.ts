@@ -5,6 +5,7 @@ import { sign, verify, JwtPayload } from "jsonwebtoken";
 import { ACCESS_SECRET, generateAccessToken, purgeExpiredTokensSchema, REFRESH_SECRET, registerSchema } from "../utility/utils";
 import { AuthError } from "../errors";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
+import bcrypt from "bcryptjs";
 @injectable()
 export class UserController {
     constructor(@inject(UserService) private userService: UserService
@@ -26,9 +27,10 @@ export class UserController {
         try {
             const login = await this.userService.Login(c);
             return c.json({ message: login })
-        } catch (e:any) {
+        } catch (e: any) {
             console.error(e);
-            return c.json({ message: e.message }, 401); }
+            return c.json({ message: e.message }, 401);
+        }
     }
     register = async (c: Context) => {
         const result = registerSchema.safeParse(await c.req.json());
@@ -40,9 +42,9 @@ export class UserController {
         try {
             const registeredUser = await this.userService.Register(username, email, password);
             return c.json(registeredUser, 201);
-        } catch (e:any) {
+        } catch (e: any) {
             console.error(e);
-            return c.json({message:e.message}, 500);
+            return c.json({ message: e.message }, 500);
         }
     };
     refreshToken = async (c: Context) => {
@@ -64,6 +66,7 @@ export class UserController {
         const { email } = await c.req.json();
         try {
             const user = await this.userService.GetUserByEmail(email);
+            console.log(user);
             if (user.length === 1) {
                 const resetToken = sign({ email }, ACCESS_SECRET, { expiresIn: '1h' })
                 return c.json({ message: "If you have registered, you will recieve an email", resetToken });
@@ -77,6 +80,7 @@ export class UserController {
 
     resetPassword = async (c: Context) => {
         const { resetToken, password } = await c.req.json();
+        console.log("Reset password:", password);
         // if(!resetToken||!password){
         //     return c.json({message:"ResetToken and password are required"},400);
 
@@ -86,8 +90,14 @@ export class UserController {
             if (typeof payload === 'object' && payload && 'email' in payload) {
                 const email = (payload as JwtPayload).email as string;
                 const user = await this.userService.GetUserByEmail(email);
+
                 if (user.length === 1) {
-                    console.log('User fetched:', { id: user.id, email: user.email });
+
+                    const isSamePassword = await bcrypt.compare(password, user[0].hashedPassword);
+                    if (isSamePassword) {
+                        console.log("Same password");
+                        return c.json({ message: "New password cannot be same as old password" }, 400)
+                    }
                     const updatedUser = await this.userService.UpdatePassword(email, password);
                     if (updatedUser) {
                         return c.json({ message: "Updated successfully" }, 200)
@@ -132,25 +142,42 @@ export class UserController {
 
     logout = async (c: Context) => {
         const { email, refreshToken } = await c.req.json();
+        console.log("Logout email:", email);
         const user = await this.userService.GetUserByEmail(email);
-
+        console.log("User found for logout:", user);
         if (!user) {
             return c.json({ message: 'User not found' }, 404);
         }
+        try {
 
-        await this.userService.InvalidateTokenForLogout(user.id, refreshToken);
-        return c.json({ message: 'Logged out successfully' }, 200);
+            const tokenInvalidated = await this.userService.InvalidateTokenForLogout(user.id, refreshToken);
+
+            if (tokenInvalidated) {
+
+                return c.json({ message: 'Logged out successfully' }, 200);
+            }
+        } catch (e) {
+            console.error(e);
+            return c.json({ message: 'Failed to logout' }, 500);
+        }
     };
 
     purgeExpiredTokens = async (c: Context) => {
         const result = purgeExpiredTokensSchema.safeParse(await c.req.json());
         if (!result.success) return c.json({ error: result.error.flatten() }, 400);
         const { secret } = result.data;
+        try {
 
-        await this.userService.PurgeExpiredTokensFromDB(secret);
-        throw new AuthError();
+            const tokensPurged=await this.userService.PurgeExpiredTokensFromDB(secret);
+            if(tokensPurged){
 
-        return c.json({ "message": "Complete" }, 200)
+                return c.json({ "message": "Complete" }, 200)
+            }
+        } catch (e) {
+            throw new AuthError();
+
+        }
+
     }
 
     onboardUser = async (c: Context) => {
