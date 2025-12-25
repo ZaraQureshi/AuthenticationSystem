@@ -8,6 +8,7 @@ export class MongoUserRepository implements IUserRepository {
     private usersCollection: any;
     private tokensCollection: any;
     constructor(@inject('Database') private db: any) {
+        console.log("MongoUserRepository initialized with db:", db);
         this.usersCollection = this.db.collection('users');
         this.tokensCollection = this.db.collection('tokens');
     }

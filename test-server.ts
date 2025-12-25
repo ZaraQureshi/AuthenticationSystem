@@ -1,25 +1,36 @@
-import { Hono } from "hono";
-import { serve } from "@hono/node-server";
-import { createAuthApp } from "./src/index.ts"; // your main export
-import { createSchema } from "./src/db.ts";     // your DB initializer
+// test-server.ts
+import { MongoClient } from "mongodb";
+import { createAuthService } from "./src/index";
 
 async function main() {
-  // Create DB connection normally
-  const { db } = await createSchema({
-    DB_TYPE: "mongo",
-    DATABASE_URL: process.env.DATABASE_URL,
+  // 1. Connect DB
+  const client = new MongoClient("mongodb://localhost:27017/PTHEALTHCARE");
+  await client.connect();
+  const db = client.db("PTHEALTHCARE");
+
+  // 2. Create auth service
+  const auth = await createAuthService({
+    dbType: "mongo",
+    db: db,
+    accessSecret: "access-secret",
+    refreshSecret: "refresh-secret"
   });
 
-  const auth = await createAuthApp({
-    DB_TYPE: "mongo",
-    existingConnection: db,
+  // 3. Call methods directly
+  const registerResult = await auth.register({
+    username: "zara",
+    email: "zara@test.com",
+    password: "123456"
   });
 
-  const app = new Hono();
-  app.route("/auth", auth.getAllUsers());
+  console.log("REGISTER:", registerResult);
 
-  console.log("Auth server running → http://localhost:3000/auth");
-  serve({ fetch: app.fetch, port: 3000 });
+  const loginResult = await auth.login({
+    email: "zara@test.com",
+    password: "123456"
+  });
+
+  console.log("LOGIN:", loginResult);
 }
 
-main();
+main().catch(console.error);

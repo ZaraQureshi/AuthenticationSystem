@@ -11,11 +11,15 @@
         "forceConsistentCasingInFileNames": true,
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
-        "sourceMap": true
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        
     },
     "include": [
         "src",
-        "drizzle.config.ts"
+        "drizzle.config.ts",
+        "test-server.ts"
    ],
     "exclude": [
         "node_modules",

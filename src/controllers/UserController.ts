@@ -1,94 +1,90 @@
 import { inject, injectable } from "tsyringe";
 import { UserService } from "../service/UserService";
-import { Context } from "hono";
-import { sign, verify, JwtPayload } from "jsonwebtoken";
-import { ACCESS_SECRET, generateAccessToken, purgeExpiredTokensSchema, REFRESH_SECRET, registerSchema } from "../utility/utils";
-import { AuthError } from "../utility/errors";
+// import { sign, verify, JwtPayload } from "jsonwebtoken";
+import { generateAccessToken, purgeExpiredTokensSchema, registerSchema } from "../utility/utils";
+//import { AuthError } from "../utility/errors";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import bcrypt from "bcryptjs";
+// import { verify } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
+const { sign, verify } = jwt;
+
 @injectable()
 export class UserController {
-    constructor(@inject(UserService) private userService: UserService
-    ) {
+    constructor(
+        @inject(UserService) private userService: UserService,
+        @inject("AccessSecret") private accessSecret: string,
+        @inject("RefreshSecret") private refreshSecret: string
+    ) { }
 
-    }
-
-    getAllUsers = async (c: Context) => {
+    getAllUsers = async () => {
         try {
             const users = await this.userService.GetAllUsers();
-            return c.json(users, 200);
+            return users;
         } catch (e) {
-            console.error(e);
-            return c.json({ message: 'Failed to fetch users' }, 500);
+            throw new Error('Failed to fetch users');
         }
     };
 
-    login = async (c: Context) => {
+    login = async ({ email, password }: { email: string; password: string }) => {
         try {
-            const login = await this.userService.Login(c);
-            return c.json({ message: login })
+            const result = await this.userService.Login(email, password);
+            return result;
         } catch (e: any) {
-            console.error(e);
-            return c.json({ message: e.message }, 401);
+            throw new Error(e.message);
         }
     }
-    register = async (c: Context) => {
-        const result = registerSchema.safeParse(await c.req.json());
+    register = async ({ username, email, password }: { username: string; email: string; password: string }) => {
+        const result = registerSchema.safeParse({ username, email, password });
         if (!result.success) {
-            return c.json({ error: result.error.flatten() }, 400);
+            throw new Error(JSON.stringify(result.error.flatten()));
         }
 
-        const { username, email, password } = result.data;
         try {
             const registeredUser = await this.userService.Register(username, email, password);
-            return c.json(registeredUser, 201);
+            return registeredUser;
         } catch (e: any) {
-            console.error(e);
-            return c.json({ message: e.message }, 500);
+            throw new Error(e.message);
         }
     };
-    refreshToken = async (c: Context) => {
-        const { refreshToken } = await c.req.json();
+    refreshToken = async (refreshToken: string) => {
         try {
-            const payload = verify(refreshToken, REFRESH_SECRET);
+            const payload = verify(refreshToken, this.refreshSecret);
             if (typeof payload === 'object' && payload && 'email' in payload) {
-                const accessToken = generateAccessToken(payload as JwtPayload);
-                return c.json({ accessToken });
+                const accessToken = generateAccessToken(payload as jwt.JwtPayload, this.accessSecret);
+                return { accessToken };
             }
-            return c.json({ message: 'Invalid refresh token payload' }, 401);
+            throw new Error('Invalid refresh token payload');
         } catch (ex) {
-            console.error(ex);
-            return c.json({ message: 'Invalid refresh token' }, 401);
+            throw new Error('Invalid refresh token');
         }
     };
 
-    forgotPassword = async (c: Context) => {
-        const { email } = await c.req.json();
+    forgotPassword = async (email:string) => {
         try {
             const user = await this.userService.GetUserByEmail(email);
             console.log(user);
             if (user.length === 1) {
-                const resetToken = sign({ email }, ACCESS_SECRET, { expiresIn: '1h' })
-                return c.json({ message: "If you have registered, you will recieve an email", resetToken });
+                const resetToken = sign({ email }, this.accessSecret, { expiresIn: '1h' })
+                return { message: "If you have registered, you will recieve an email", resetToken };
             }
-            return c.json({ message: "Email does not exist" })
+            return { message: "Email does not exist" };
         } catch (e) {
             console.error(e);
-            return c.json({ message: 'Failed to process request' }, 500);
+            return { message: 'Failed to process request' };
         }
     }
 
-    resetPassword = async (c: Context) => {
-        const { resetToken, password } = await c.req.json();
+    resetPassword = async ({ resetToken, password }: { resetToken: string; password: string }) => {
         console.log("Reset password:", password);
         // if(!resetToken||!password){
         //     return c.json({message:"ResetToken and password are required"},400);
 
         // }
         try {
-            const payload = verify(resetToken, ACCESS_SECRET);
+            const payload = verify(resetToken, this.accessSecret);
             if (typeof payload === 'object' && payload && 'email' in payload) {
-                const email = (payload as JwtPayload).email as string;
+                const email = (payload as jwt.JwtPayload).email as string;
                 const user = await this.userService.GetUserByEmail(email);
 
                 if (user.length === 1) {
@@ -96,57 +92,53 @@ export class UserController {
                     const isSamePassword = await bcrypt.compare(password, user[0].hashedPassword);
                     if (isSamePassword) {
                         console.log("Same password");
-                        return c.json({ message: "New password cannot be same as old password" }, 400)
+                        return { message: "New password cannot be same as old password" }
                     }
                     const updatedUser = await this.userService.UpdatePassword(email, password);
                     if (updatedUser) {
-                        return c.json({ message: "Updated successfully" }, 200)
+                        return { message: "Updated successfully" }
                     }
                 }
-                return c.json({ message: "Something went wrong" }, 404)
+                return { message: "Something went wrong" }
             }
-            return c.json({ message: "Token expired or invalid" }, 401)
+            return { message: "Token expired or invalid" }
         } catch (ex) {
             console.error(ex);
-            return c.json({ message: "Token expired or invalid" }, 401)
+            return { message: "Token expired or invalid" }
         }
 
     }
 
-    sentEmailVerification = async (c: Context) => {
-        const { email } = await c.req.json();
+    sentEmailVerification = async (email: string) => {
         const user = await this.userService.GetUserByEmail(email);
         if (user.length === 1) {
-            const verificationLink = sign({ email }, ACCESS_SECRET, { expiresIn: '1h' });
+            const verificationLink = sign({ email }, this.accessSecret, { expiresIn: '1h' });
             // send verification link to email
-            return c.json({ message: "If you have registered, you will recieve an email", verificationLink });
-
+            return { message: "If you have registered, you will recieve an email", verificationLink };
         }
-        return c.json({ message: "Something went wrong" }, 404)
+        return { message: "Something went wrong" }
     }
 
-    verifyEmail = async (c: Context) => {
-        const { emailToken } = await c.req.json();
+    verifyEmail = async (emailToken: string) => {
         try {
-            const payload = verify(emailToken, ACCESS_SECRET);
+            const payload = verify(emailToken, this.accessSecret);
             if (typeof payload === 'object' && payload && 'email' in payload) {
-                return c.json({ message: "Email verified" }, 200)
+                return { message: "Email verified" }
             }
-            return c.json({ message: "Not verified" }, 400)
+            return { message: "Not verified" }
         } catch (ex) {
             console.error(ex);
-            return c.json({ message: "Not verified" }, 400)
+            return { message: "Not verified" }
         }
 
     }
 
-    logout = async (c: Context) => {
-        const { email, refreshToken } = await c.req.json();
+    logout = async (email: string, refreshToken: string) => {
         console.log("Logout email:", email);
         const user = await this.userService.GetUserByEmail(email);
         console.log("User found for logout:", user);
         if (!user) {
-            return c.json({ message: 'User not found' }, 404);
+            return { message: 'User not found' };
         }
         try {
 
@@ -154,48 +146,33 @@ export class UserController {
 
             if (tokenInvalidated) {
 
-                return c.json({ message: 'Logged out successfully' }, 200);
+                return { message: 'Logged out successfully' };
             }
         } catch (e) {
             console.error(e);
-            return c.json({ message: 'Failed to logout' }, 500);
+            return { message: 'Failed to logout' };
         }
     };
 
-    purgeExpiredTokens = async (c: Context) => {
-        const result = purgeExpiredTokensSchema.safeParse(await c.req.json());
-        if (!result.success) return c.json({ error: result.error.flatten() }, 400);
-        const { secret } = result.data;
+    purgeExpiredTokens = async (secret: string) => {
         try {
-
-            const tokensPurged=await this.userService.PurgeExpiredTokensFromDB(secret);
-            if(tokensPurged){
-
-                return c.json({ "message": "Complete" }, 200)
+            const tokensPurged = await this.userService.PurgeExpiredTokensFromDB(secret);
+            if (tokensPurged) {
+                return { message: "Complete" };
             }
         } catch (e) {
-            throw new AuthError();
-
+            throw new Error();
         }
-
     }
 
-    onboardUser = async (c: Context) => {
-
-        console.log("onboard")
-        const { dbType, connectionString } = await c.req.json();
-
+    onboardUser = async () => {
         try {
-            // const db = await createSchema();
-
-
             const migrated = await this.userService.MigrateDB();
             if (migrated) {
-
-                return c.json({ message: 'Schema created successfully' });
+                return { message: 'Schema created successfully' };
             }
         } catch (err: any) {
-            return c.json({ error: err.message }, 500);
+            throw new Error(err.message);
         }
     };
 
