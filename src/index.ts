@@ -1,7 +1,6 @@
-import { initializeDI } from "./container/DI";
+import { initializeDI } from "./container/DI.ts";
 import { container } from "tsyringe";
-import { UserController } from "./controllers/UserController";
-import { users } from "./drizzle/schema";
+import { UserController } from "./controllers/UserController.ts";
 
 export interface AuthConfig {
   dbType: 'postgres' | 'mysql' | 'mongo';

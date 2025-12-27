@@ -1,7 +1,7 @@
 import { inject, injectable } from "tsyringe";
-import { UserService } from "../service/UserService";
+import { UserService } from "../service/UserService.ts";
 // import { sign, verify, JwtPayload } from "jsonwebtoken";
-import { generateAccessToken, purgeExpiredTokensSchema, registerSchema } from "../utility/utils";
+import { generateAccessToken, purgeExpiredTokensSchema, registerSchema } from "../utility/utils.ts";
 //import { AuthError } from "../utility/errors";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import bcrypt from "bcryptjs";
@@ -44,9 +44,10 @@ export class UserController {
             const registeredUser = await this.userService.Register(username, email, password);
             return registeredUser;
         } catch (e: any) {
-            throw new Error(e.message);
+            throw new Error(e);
         }
     };
+    
     refreshToken = async (refreshToken: string) => {
         try {
             const payload = verify(refreshToken, this.refreshSecret);

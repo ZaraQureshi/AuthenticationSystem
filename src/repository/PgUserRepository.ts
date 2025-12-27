@@ -1,63 +1,98 @@
 import { inject, injectable } from "tsyringe";
-import { tokens, users } from "../drizzle/schema";
-import { UserDTO } from "../model/User";
-import { IUserRepository } from "./IUserRepository";
-import { eq, lte } from "drizzle-orm";
-import { TokenDTO } from "../model/Token";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { Kysely } from "kysely";
+import { Database } from "../model/Database";
+import { IUserRepository } from "./IUserRepository.ts";
+import { UserDTO } from "../model/User.ts";
+import { TokenDTO } from "../model/Token.ts";
+import { Pool } from "pg";
 
 @injectable()
 export class PgUserRepository implements IUserRepository {
-    constructor(@inject('Database') private db: any) { }
-    async InsertUser(user: UserDTO) {
-        return await this.db.insert(users).values({
-            username: user.username,
-            email: user.email,
-            hashedPassword: user.password, // Use hashedPassword
-            role: user.role || 'user', // Default role
-            isBlocked: user.isBlocked || false, // Default: not blocked
-            isVerified: user.isVerified || false, // Default: not verified
-        }).returning();
+    constructor(
+        @inject("Database") private db: Pool
+    ) { }
+    GetAllUsers(): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
+    UpdatePassword(email: string, password: string): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
+    GetByToken(token: string): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
+    InsertToken(token: TokenDTO): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
+    DeleteToken(): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
+    MigrateDB(): Promise<any> {
+        throw new Error("Method not implemented.");
     }
 
-    async GetAllUsers() {
-        return await this.db.select().from(users);
-    }
+    // GetAllUsers() {
+    //     return this.db
+    //         .selectFrom("users")
+    //         .selectAll()
+    //         .execute();
+    // }
 
-    async GetUserByEmail(email: string): Promise<any> {
-        return await this.db.select().from(users).where(eq(users.email, email))
-    }
-    async UpdatePassword(email: string, password: string): Promise<any> {
-        return await this.db.update(users).set({ hashedPassword: password }).where(eq(users.email, email));
-    }
-
-    async InsertToken(token: TokenDTO) {
-        return await this.db.insert(tokens).values(
-            {
-                userId: token.userId,
-                available: false,
-                blocked: false,
-                token,
-                expiryDate: token.expiryDate,
-                createdAt: token.createdAt,
-                updatedAt: token.updatedAt,
-            }
+    GetUserByEmail(email: string) {
+        return this.db.query(
+            `SELECT * FROM users WHERE email = '${email}'`
         )
     }
 
-    async GetByToken(token: string): Promise<any> {
-        return await this.db.select().from(tokens).where(eq(tokens.token, token))
-
+    InsertUser(user: UserDTO) {
+        console.log("Inserting user:", user);
+        return this.db.query(`insert into users (username, email, password, role, isBlocked, isVerified) values
+            ('${user.username}', '${user.email}', '${user.password}', '${user.role}', ${user.isBlocked}, ${user.isVerified}) returning *`);
+        // return this.db
+        //     .insertInto("users")
+        //     .values({
+        //         username: user.username,
+        //         email: user.email,
+        //         password: user.password,
+        //         role: user.role,
+        //         isBlocked: user.isBlocked,
+        //         isVerified: user.isVerified,
+        //     })
+        //     .returningAll()
+        //     .executeTakeFirst();
     }
 
-    async DeleteToken(): Promise<any> {
-        return await this.db
-            .delete(tokens)
-            .where(lte(tokens.expiryDate, new Date().toISOString()));
-    }
+    // UpdatePassword(email: string, hashedPassword: string) {
+    //     return this.db
+    //         .updateTable("users")
+    //         .set({ password: hashedPassword })
+    //         .where("email", "=", email)
+    //         .executeTakeFirst();
+    // }
 
-    async MigrateDB():Promise<any>{
-        await migrate(this.db, { migrationsFolder: 'src/drizzle/migrations' });
-    }
-    
+    // GetByToken(token: string) {
+    //     return this.db
+    //         .selectFrom("tokens")
+    //         .selectAll()
+    //         .where("token", "=", token)
+    //         .execute();
+    // }
+
+    // InsertToken(token: TokenDTO) {
+    //     return this.db
+    //         .insertInto("tokens")
+    //         .values(token)
+    //         .executeTakeFirst();
+    // }
+
+    // DeleteToken() {
+    //     return this.db
+    //         .deleteFrom("tokens")
+    //         .where("expiryDate", "<=", new Date().toISOString())
+    //         .execute();
+    // }
+
+    // async MigrateDB() {
+    //     // optional – usually done outside auth packages
+    //     return true;
+    // }
 }
