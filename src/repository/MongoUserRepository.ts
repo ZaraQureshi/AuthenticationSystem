@@ -38,7 +38,8 @@ export class MongoUserRepository implements IUserRepository {
         try{
             const result=await this.usersCollection.insertOne({
                 username:user.username,
-                email:user.email,            hashedPassword:user.password,   
+                email:user.email,            
+                password:user.password,   
                 role:user.role ||'user',
                 isBlocked:user.isBlocked || false,
                 isVerified:user.isVerified || false,
@@ -55,7 +56,7 @@ export class MongoUserRepository implements IUserRepository {
         try{
             const result= this.usersCollection.updateOne(
                 { email: email },
-                { $set: { hashedPassword: password } }  );
+                { $set: { password: password } }  );
             return result;
         }
         catch(e){
@@ -73,7 +74,6 @@ export class MongoUserRepository implements IUserRepository {
             console.error("Error fetching token from MongoDB:", e);
             throw e;       
         }
-        throw new Error("Method not implemented.");
     }
     InsertToken(token: TokenDTO): Promise<any> {
         try{
