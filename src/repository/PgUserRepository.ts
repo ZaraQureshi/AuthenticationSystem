@@ -1,5 +1,5 @@
 import { inject, injectable } from "tsyringe";
-import { Kysely } from "kysely";
+import { Kysely, sql } from "kysely";
 import { Database } from "../model/Database";
 import { IUserRepository } from "./IUserRepository";
 import { UserDTO } from "../model/User";
@@ -36,6 +36,8 @@ export class PgUserRepository implements IUserRepository {
         role: user.role,
         isBlocked: user.isBlocked,
         isVerified: user.isVerified,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
       })
       .returning("id")
       .executeTakeFirst();
@@ -71,8 +73,37 @@ export class PgUserRepository implements IUserRepository {
       .execute();
   }
 
-  async MigrateDB() {
-    // optional – usually done outside auth packages
-    return true;
-  }
+  
+
+  incrementFailedAttempts(email: string) {
+  return this.db
+    .updateTable("users")
+    .set({
+      failedLoginAttempts: sql`failed_login_attempts + 1`,
+    })
+    .where("email", "=", email)
+    .returning("failedLoginAttempts")
+    .executeTakeFirst()
+    .then(r => r!.failedLoginAttempts);
+}
+
+lockAccount(email: string, lockedUntil: Date) {
+  return this.db
+    .updateTable("users")
+    .set({ lockedUntil: lockedUntil })
+    .where("email", "=", email)
+    .execute();
+}
+
+resetFailedAttempts(email: string) {
+  return this.db
+    .updateTable("users")
+    .set({
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+    })
+    .where("email", "=", email)
+    .execute();
+}
+
 }
