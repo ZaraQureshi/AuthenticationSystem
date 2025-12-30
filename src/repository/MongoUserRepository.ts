@@ -12,6 +12,39 @@ export class MongoUserRepository implements IUserRepository {
         this.usersCollection = this.db.collection('users');
         this.tokensCollection = this.db.collection('tokens');
     }
+    incrementFailedAttempts(email: string): Promise<any> {
+        try{
+            const result= this.usersCollection.updateOne(
+                { email: email },
+                { $inc: { failedLoginAttempts: 1 } }  );
+            return result;
+        }catch(e){
+            console.error("Error incrementing failed attempts in MongoDB:", e);
+            throw e;
+        }
+    }
+    lockAccount(email: string, lockedUntil: Date): Promise<any> {
+        try{
+            const result= this.usersCollection.updateOne(
+                { email: email },
+                { $set: { lockedUntil: lockedUntil } }  );
+            return result;
+        }catch(e){
+            console.error("Error locking account in MongoDB:", e);
+            throw e;
+        }
+    }
+    resetFailedAttempts(email: string): Promise<any> {
+        try{
+            const result= this.usersCollection.updateOne(
+                { email: email },
+                { $set: { failedLoginAttempts: 0, lockedUntil: null } }  );
+            return result;
+        }catch(e){
+            console.error("Error resetting failed attempts in MongoDB:", e);
+            throw e;
+        } 
+    }
     async GetAllUsers(): Promise<any> {
         try{
 
@@ -43,6 +76,9 @@ export class MongoUserRepository implements IUserRepository {
                 role:user.role ||'user',
                 isBlocked:user.isBlocked || false,
                 isVerified:user.isVerified || false,
+                failedLoginAttempts: 0,
+                lockedUntil: null,
+                
             });
             return result;     
         }
