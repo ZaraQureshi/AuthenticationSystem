@@ -46,4 +46,4 @@ export function createAuthService(config: AuthConfig): Promise<AuthService>;
 /**
  * Exported Drizzle schema for the users table.
  */
-export { users } from "./drizzle/schema";
+// export { users } from "./src/drizzle/schema";

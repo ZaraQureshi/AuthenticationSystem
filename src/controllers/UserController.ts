@@ -1,7 +1,7 @@
 import { inject, injectable } from "tsyringe";
-import { UserService } from "../service/UserService.ts";
+import { UserService } from "../service/UserService";
 // import { sign, verify, JwtPayload } from "jsonwebtoken";
-import { generateAccessToken, purgeExpiredTokensSchema, registerSchema } from "../utility/utils.ts";
+import { generateAccessToken, purgeExpiredTokensSchema, registerSchema } from "../utility/utils";
 //import { AuthError } from "../utility/errors";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import bcrypt from "bcryptjs";
@@ -44,7 +44,7 @@ export class UserController {
             const registeredUser = await this.userService.Register(username, email, password);
             return registeredUser;
         } catch (e: any) {
-            throw new Error(e);
+            throw new Error(e.message);
         }
     };
     
@@ -76,6 +76,7 @@ export class UserController {
         }
     }
 
+    // accesstoken and password as input
     resetPassword = async ({ resetToken, password }: { resetToken: string; password: string }) => {
         console.log("Reset password:", password);
         // if(!resetToken||!password){
@@ -90,7 +91,7 @@ export class UserController {
 
                 if (user.length === 1) {
 
-                    const isSamePassword = await bcrypt.compare(password, user[0].hashedPassword);
+                    const isSamePassword = await bcrypt.compare(password, user[0].password);
                     if (isSamePassword) {
                         console.log("Same password");
                         return { message: "New password cannot be same as old password" }
@@ -166,16 +167,7 @@ export class UserController {
         }
     }
 
-    onboardUser = async () => {
-        try {
-            const migrated = await this.userService.MigrateDB();
-            if (migrated) {
-                return { message: 'Schema created successfully' };
-            }
-        } catch (err: any) {
-            throw new Error(err.message);
-        }
-    };
+   
 
 
 }

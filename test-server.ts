@@ -1,6 +1,6 @@
 // test-server.ts
 import { MongoClient } from "mongodb";
-import { createAuthService } from "./src/index.ts";
+import { createAuthService } from "./index";
 import { Pool } from "pg";
 
 async function main() {
@@ -36,7 +36,7 @@ async function main() {
   // 3. Call methods directly
   const registerResult = await auth.register({
     username: "zara",
-    email: "zara@test.com",
+    email: "zara1@test.com",
     password: "123456"
   });
 

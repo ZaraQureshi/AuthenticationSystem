@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs";
 import { generateAccessToken, generateRefreshToken, getExpiryFromToken } from "../utility/utils";
 import { UserDTO } from "../model/User";
 import { TokenDTO } from "../model/Token";
+import { AccountLockService } from "./AccountLockService";
+import { RateLimiter } from "../utility/RateLimiter";
 //import { AuthError } from "../utility/errors";
 
 @injectable()
@@ -11,9 +13,10 @@ export class UserService {
     constructor(
         @inject("IUserRepository") private userRepo: IUserRepository,
         @inject("AccessSecret") private accessSecret: string,
-        @inject("RefreshSecret") private refreshSecret: string
+        @inject("RefreshSecret") private refreshSecret: string,
+        private accountLock: AccountLockService,
+        // private rateLimiterByEmail:RateLimiter
     ) { }
-
     async GetAllUsers() {
         const user = await this.userRepo.GetAllUsers();
         if (!user) throw new Error('User not found');
@@ -22,20 +25,43 @@ export class UserService {
     }
 
     async Login(email: string, password: string) {
-        const userExists = await this.userRepo.GetUserByEmail(email)
-        if (userExists.length === 0) {
-            throw new Error('User does not exist');
+        // 1. Rate limiting (FAST, Redis)
+
+        // await this.rateLimiterByEmail.hit(`login:email:${email}`);
+
+        // 2. Fetch user
+        const user = await this.userRepo.GetUserByEmail(email);
+
+        if (!user) {
+            throw new Error("Invalid email or password");
+                }
+        console.log("User found",user);
+        // 3. Account lock check
+        const checkBlock=await this.accountLock.isLocked(user[0].email)
+        console.log("Account lock check:",checkBlock);
+        if (checkBlock) {
+            throw new Error("Account temporarily locked");
         }
-        const user = userExists[0];
-        // check if password is correct
-        const checkPassword = await bcrypt.compare(password, user.hashedPassword);
-        if (!checkPassword) {
-            throw new Error('Invalid credentials');
+console.log("Account not locked",user[0].password);
+        // 4. Password check
+        console.log("Comparing passwords",await bcrypt.compare(password, user[0].password));
+        const valid = await bcrypt.compare(password, user[0].password);
+console.log("Password valid:",valid);
+        if (!valid) {
+            console.log("Recording failure for",user[0].email);
+            await this.accountLock.recordFailure(user[0].email);
+            console.log("Failure recorded");
+            throw new Error("Invalid email or password");
         }
-        const accessToken = generateAccessToken(user, this.accessSecret);
-        const refreshToken = generateRefreshToken(user, this.refreshSecret);
+console.log("Password correct");
+        // 5. Success
+        await this.accountLock.recordSuccess(user[0].email);
+        console.log("Recorded success for",user[0].email);
+        const accessToken = generateAccessToken(user[0], this.accessSecret);
+        const refreshToken = generateRefreshToken(user[0], this.refreshSecret);
 
         return { accessToken, refreshToken };
+
     }
 
     Register = async (username: string, email: string, password: string) => {
@@ -101,8 +127,6 @@ export class UserService {
         }
 
     }
-    MigrateDB = async () => {
-        return await this.userRepo.MigrateDB();
-    }
+   
 
 }

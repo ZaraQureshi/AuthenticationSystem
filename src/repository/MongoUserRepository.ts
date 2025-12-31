@@ -13,134 +13,139 @@ export class MongoUserRepository implements IUserRepository {
         this.tokensCollection = this.db.collection('tokens');
     }
     incrementFailedAttempts(email: string): Promise<any> {
-        try{
-            const result= this.usersCollection.updateOne(
+        try {
+            const result = this.usersCollection.findOneAndUpdate(
                 { email: email },
-                { $inc: { failedLoginAttempts: 1 } }  );
+                { $inc: { failedLoginAttempts: 1 } },
+                {
+                    returnDocument: "after", //  return updated doc
+                    projection: { failedLoginAttempts: 1 }, //  only what you need
+                }
+            );
             return result;
-        }catch(e){
+        } catch (e) {
             console.error("Error incrementing failed attempts in MongoDB:", e);
             throw e;
         }
     }
     lockAccount(email: string, lockedUntil: Date): Promise<any> {
-        try{
-            const result= this.usersCollection.updateOne(
+        try {
+            const result = this.usersCollection.updateOne(
                 { email: email },
-                { $set: { lockedUntil: lockedUntil } }  );
+                { $set: { lockedUntil: lockedUntil, isBlocked: true } });
             return result;
-        }catch(e){
+        } catch (e) {
             console.error("Error locking account in MongoDB:", e);
             throw e;
         }
     }
     resetFailedAttempts(email: string): Promise<any> {
-        try{
-            const result= this.usersCollection.updateOne(
+        try {
+            const result = this.usersCollection.updateOne(
                 { email: email },
-                { $set: { failedLoginAttempts: 0, lockedUntil: null } }  );
+                { $set: { failedLoginAttempts: 0, lockedUntil: null,isBlocked: false } });
             return result;
-        }catch(e){
+        } catch (e) {
             console.error("Error resetting failed attempts in MongoDB:", e);
             throw e;
-        } 
+        }
     }
     async GetAllUsers(): Promise<any> {
-        try{
+        try {
 
-            const users= await this.usersCollection.find().toArray();
+            const users = await this.usersCollection.find().toArray();
             return users;
         }
-        catch(e){
+        catch (e) {
             console.error("Error fetching users from MongoDB:", e);
             throw e;
         }
         throw new Error("Method not implemented.");
     }
-   async GetUserByEmail(email: string): Promise<any> {
-        try{
+    async GetUserByEmail(email: string): Promise<any> {
+        try {
 
-            const user=await this.usersCollection.find({email:email}).toArray();
+            const user = await this.usersCollection.find({ email: email }).toArray();
             return user;
-        }catch(e){
+        } catch (e) {
             console.error("Error fetching user by email from MongoDB:", e);
-            throw e;       
-        } 
+            throw e;
+        }
     }
     async InsertUser(user: UserDTO): Promise<any> {
-        try{
-            const result=await this.usersCollection.insertOne({
-                username:user.username,
-                email:user.email,            
-                password:user.password,   
-                role:user.role ||'user',
-                isBlocked:user.isBlocked || false,
-                isVerified:user.isVerified || false,
+        try {
+            const result = await this.usersCollection.insertOne({
+                username: user.username,
+                email: user.email,
+                password: user.password,
+                role: user.role || 'user',
+                isBlocked: user.isBlocked || false,
+                isVerified: user.isVerified || false,
                 failedLoginAttempts: 0,
                 lockedUntil: null,
-                
+
             });
-            return result;     
+            return result;
         }
-        catch(e){
+        catch (e) {
             console.error("Error inserting user into MongoDB:", e);
-            throw e;       
+            throw e;
         }
         throw new Error("Method not implemented.");
     }
     UpdatePassword(email: string, password: string): Promise<any> {
-        try{
-            const result= this.usersCollection.updateOne(
+        try {
+            const result = this.usersCollection.updateOne(
                 { email: email },
-                { $set: { password: password } }  );
+                { $set: { password: password } });
             return result;
         }
-        catch(e){
+        catch (e) {
             console.error("Error updating password in MongoDB:", e);
-            throw e;       
+            throw e;
         }
         throw new Error("Method not implemented.");
     }
     GetByToken(token: string): Promise<any> {
-        try{
-            const tokenData= this.tokensCollection.find({token:token}).toArray();
+        try {
+            const tokenData = this.tokensCollection.find({ token: token }).toArray();
             return tokenData;
         }
-        catch(e){
+        catch (e) {
             console.error("Error fetching token from MongoDB:", e);
-            throw e;       
+            throw e;
         }
     }
     InsertToken(token: TokenDTO): Promise<any> {
-        try{
-            const result= this.tokensCollection.insertOne({
+        try {
+            const result = this.tokensCollection.insertOne({
                 userId: token.userId,
                 available: token.available,
                 blocked: token.blocked,
                 token: token.token,
                 expiryDate: token.expiryDate,
                 createdAt: token.createdAt,
-                updatedAt: token.updatedAt, 
+                updatedAt: token.updatedAt,
             });
             return result;
         }
-        catch(e){
+        catch (e) {
             console.error("Error inserting token into MongoDB:", e);
-            throw e;       
+            throw e;
         }
         throw new Error("Method not implemented.");
     }
     DeleteToken(): Promise<any> {
-        try{
-            const result= this.tokensCollection.deleteMany({
+        try {
+            const result = this.tokensCollection.deleteMany({
                 expiryDate: { $lte: new Date().toISOString() }
             });
             return result;
 
         }
-        catch(e){
+        catch (e) {
             console.error("Error deleting tokens from MongoDB:", e);
-            throw e;       
+            throw e;
         }
         throw new Error("Method not implemented.");
     }
@@ -149,7 +154,7 @@ export class MongoUserRepository implements IUserRepository {
     }
 
 
-    
+
 
 
 }
