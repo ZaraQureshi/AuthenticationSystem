@@ -1,7 +1,3 @@
-
-
-
-```md
 # @zaraqdev/auth-service
 
 ## Introduction
@@ -192,6 +188,5 @@ app.post("/login", async (req, res) => {
 });
 
 ---
-##Contributions
+## Contributions
 We welcome contributions from the community to improve auth-service.
-

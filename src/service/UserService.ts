@@ -1,16 +1,22 @@
-import { Context } from "hono";
 import { IUserRepository } from "../repository/IUserRepository";
 import { inject, injectable } from 'tsyringe';
 import bcrypt from "bcryptjs";
 import { generateAccessToken, generateRefreshToken, getExpiryFromToken } from "../utility/utils";
 import { UserDTO } from "../model/User";
 import { TokenDTO } from "../model/Token";
-import { AuthError } from "../utility/errors";
+import { AccountLockService } from "./AccountLockService";
+import { RateLimiter } from "../utility/RateLimiter";
+//import { AuthError } from "../utility/errors";
 
 @injectable()
 export class UserService {
-    constructor(@inject("IUserRepository") private userRepo: IUserRepository) { }
-
+    constructor(
+        @inject("IUserRepository") private userRepo: IUserRepository,
+        @inject("AccessSecret") private accessSecret: string,
+        @inject("RefreshSecret") private refreshSecret: string,
+        private accountLock: AccountLockService,
+        // private rateLimiterByEmail:RateLimiter
+    ) { }
     async GetAllUsers() {
         const user = await this.userRepo.GetAllUsers();
         if (!user) throw new Error('User not found');
@@ -18,23 +24,44 @@ export class UserService {
         return user;
     }
 
-    async Login(c: Context) {
-        const { email, password } = await c.req.json();
-        const userExists = await this.userRepo.GetUserByEmail(email)
-        console.log(userExists);
-        if (userExists.length === 0) {
-            return c.json({ message: 'User does not exist' }, 404);
+    async Login(email: string, password: string) {
+        // 1. Rate limiting (FAST, Redis)
+
+        // await this.rateLimiterByEmail.hit(`login:email:${email}`);
+
+        // 2. Fetch user
+        const user = await this.userRepo.GetUserByEmail(email);
+
+        if (!user) {
+            throw new Error("Invalid email or password");
+                }
+        console.log("User found",user);
+        // 3. Account lock check
+        const checkBlock=await this.accountLock.isLocked(user[0].email)
+        console.log("Account lock check:",checkBlock);
+        if (checkBlock) {
+            throw new Error("Account temporarily locked");
         }
-        const user = userExists[0];
-        // check if password is correct
-        const checkPassword = await bcrypt.compare(password, user.hashedPassword);
-        if (!checkPassword) {
-            throw new AuthError('Invalid credentials');
+console.log("Account not locked",user[0].password);
+        // 4. Password check
+        console.log("Comparing passwords",await bcrypt.compare(password, user[0].password));
+        const valid = await bcrypt.compare(password, user[0].password);
+console.log("Password valid:",valid);
+        if (!valid) {
+            console.log("Recording failure for",user[0].email);
+            await this.accountLock.recordFailure(user[0].email);
+            console.log("Failure recorded");
+            throw new Error("Invalid email or password");
         }
-        const accessToken = generateAccessToken(user);
-        const refreshToken = generateRefreshToken(user);
+console.log("Password correct");
+        // 5. Success
+        await this.accountLock.recordSuccess(user[0].email);
+        console.log("Recorded success for",user[0].email);
+        const accessToken = generateAccessToken(user[0], this.accessSecret);
+        const refreshToken = generateRefreshToken(user[0], this.refreshSecret);
 
         return { accessToken, refreshToken };
+
     }
 
     Register = async (username: string, email: string, password: string) => {
@@ -60,7 +87,7 @@ export class UserService {
             return user;
         }
         catch (e) {
-            throw new AuthError(e as any);
+            throw new Error(e as any);
         }
     }
     UpdatePassword = async (email: string, password: string) => {
@@ -90,18 +117,16 @@ export class UserService {
         // todo: better security
 
         if (secret !== process.env.PURGE_SECRET)
-            throw new AuthError("Unauthorized to purge tokens");
+            throw new Error("Unauthorized to purge tokens");
 
         try {
             const deletedToken = await this.userRepo.DeleteToken();
             return deletedToken;
         } catch (e) {
-            throw new AuthError("Failed to purge tokens");
+            throw new Error("Failed to purge tokens");
         }
 
     }
-    MigrateDB = async () => {
-        return await this.userRepo.MigrateDB();
-    }
+   
 
 }

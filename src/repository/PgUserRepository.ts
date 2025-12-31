@@ -1,63 +1,109 @@
 import { inject, injectable } from "tsyringe";
-import { tokens, users } from "../drizzle/schema";
-import { UserDTO } from "../model/User";
+import { Kysely, sql } from "kysely";
+import { Database } from "../model/Database";
 import { IUserRepository } from "./IUserRepository";
-import { eq, lte } from "drizzle-orm";
+import { UserDTO } from "../model/User";
 import { TokenDTO } from "../model/Token";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
 
 @injectable()
 export class PgUserRepository implements IUserRepository {
-    constructor(@inject('Database') private db: any) { }
-    async InsertUser(user: UserDTO) {
-        return await this.db.insert(users).values({
-            username: user.username,
-            email: user.email,
-            hashedPassword: user.password, // Use hashedPassword
-            role: user.role || 'user', // Default role
-            isBlocked: user.isBlocked || false, // Default: not blocked
-            isVerified: user.isVerified || false, // Default: not verified
-        }).returning();
-    }
+  constructor(
+    @inject("Database") private db: Kysely<Database>
+  ) {}
 
-    async GetAllUsers() {
-        return await this.db.select().from(users);
-    }
+  async GetAllUsers() {
+    return await this.db
+      .selectFrom("users")
+      .selectAll()
+      .execute();
+  }
 
-    async GetUserByEmail(email: string): Promise<any> {
-        return await this.db.select().from(users).where(eq(users.email, email))
-    }
-    async UpdatePassword(email: string, password: string): Promise<any> {
-        return await this.db.update(users).set({ hashedPassword: password }).where(eq(users.email, email));
-    }
+  async GetUserByEmail(email: string) {
+    return await this.db
+      .selectFrom("users")
+      .selectAll()
+      .where("email", "=", email)
+      .execute();
+  }
 
-    async InsertToken(token: TokenDTO) {
-        return await this.db.insert(tokens).values(
-            {
-                userId: token.userId,
-                available: false,
-                blocked: false,
-                token,
-                expiryDate: token.expiryDate,
-                createdAt: token.createdAt,
-                updatedAt: token.updatedAt,
-            }
-        )
-    }
+  async InsertUser(user: UserDTO) {
+    return await this.db
+      .insertInto("users")
+      .values({
+        username: user.username,
+        email: user.email,
+        password: user.password,
+        role: user.role,
+        isBlocked: user.isBlocked,
+        isVerified: user.isVerified,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      })
+      .returning("id")
+      .executeTakeFirst();
+  }
 
-    async GetByToken(token: string): Promise<any> {
-        return await this.db.select().from(tokens).where(eq(tokens.token, token))
+  UpdatePassword(email: string, hashedPassword: string) {
+    return this.db
+      .updateTable("users")
+      .set({ password: hashedPassword })
+      .where("email", "=", email)
+      .executeTakeFirst();
+  }
 
-    }
+  GetByToken(token: string) {
+    return this.db
+      .selectFrom("tokens")
+      .selectAll()
+      .where("token", "=", token)
+      .execute();
+  }
 
-    async DeleteToken(): Promise<any> {
-        return await this.db
-            .delete(tokens)
-            .where(lte(tokens.expiryDate, new Date().toISOString()));
-    }
+  InsertToken(token: TokenDTO) {
+    return this.db
+      .insertInto("tokens")
+      .values(token)
+      .executeTakeFirst();
+  }
 
-    async MigrateDB():Promise<any>{
-        await migrate(this.db, { migrationsFolder: 'src/drizzle/migrations' });
-    }
-    
+  DeleteToken() {
+    return this.db
+      .deleteFrom("tokens")
+      .where("expiryDate", "<=", new Date().toISOString())
+      .execute();
+  }
+
+  
+
+  incrementFailedAttempts(email: string) {
+  return this.db
+    .updateTable("users")
+    .set({
+      failedLoginAttempts: sql`failed_login_attempts + 1`,
+    })
+    .where("email", "=", email)
+    .returning("failedLoginAttempts")
+    .executeTakeFirst()
+    .then(r => r!.failedLoginAttempts);
+}
+
+lockAccount(email: string, lockedUntil: Date) {
+  return this.db
+    .updateTable("users")
+    .set({ lockedUntil: lockedUntil })
+    .where("email", "=", email)
+    .execute();
+}
+
+resetFailedAttempts(email: string) {
+  return this.db
+    .updateTable("users")
+    .set({
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+    })
+    .where("email", "=", email)
+    .execute();
+}
+
 }

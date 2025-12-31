@@ -11,6 +11,8 @@ export interface IUserRepository {
     GetByToken(token:string):Promise<any>;
     InsertToken(token:TokenDTO):Promise<any>;
     DeleteToken():Promise<any>;
-    MigrateDB():Promise<any>;
+    incrementFailedAttempts(email: string): Promise<any>;
+    lockAccount(email: string, lockedUntil: Date): Promise<any>;
+    resetFailedAttempts(email: string): Promise<any>;
 
 }

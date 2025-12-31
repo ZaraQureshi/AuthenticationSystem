@@ -6,5 +6,7 @@ export interface UserDTO {
     role?: string;
     isVerified?: boolean;
     isBlocked?: boolean;
+    failedLoginAttempts?: number;
+    lockedUntil?: Date|null;
   }
 

@@ -1,24 +1,29 @@
 {
     "compilerOptions": {
         "target": "ES2020",
-        "module": "ESNext",
+        "module": "esnext",
+          "moduleResolution": "bundler",
         "outDir": "./dist", // 👈 All JS files will go into ./dist
-        "rootDir": ".", // 👈 Use project root so files like drizzle.config.ts are emitted
-        "moduleResolution": "node",
+        "rootDir": "src", // 👈 Use project root so files like drizzle.config.ts are emitted
         "esModuleInterop": true,
         "strict": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
-        "sourceMap": true
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+    //     "allowImportingTsExtensions": true,
+    //    "noEmit": true
     },
     "include": [
         "src",
-        "drizzle.config.ts"
+        
+       
    ],
     "exclude": [
         "node_modules",
-        "dist"
+        
     ]
 }

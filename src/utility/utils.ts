@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-import { sign } from "jsonwebtoken";
-import dotenv from 'dotenv';
-dotenv.config();
-export const ACCESS_SECRET = process.env.ACCESS_SECRET!;
-export const REFRESH_SECRET = process.env.REFRESH_SECRET!;
+import jwt from "jsonwebtoken";
 
 export const registerSchema = z.object({
     email: z.string().email(),
@@ -25,13 +21,12 @@ export const logoutSchema = z.object({
 export const purgeExpiredTokensSchema = z.object({
     secret: z.string().min(0),
 });
-export const generateAccessToken = (user: any) => {
-    return sign({ email: user.email, role: user.role }, ACCESS_SECRET, { expiresIn: '15m' });
+export const generateAccessToken = (user: any, secret: string) => {
+    return jwt.sign({ email: user.email, role: user.role }, secret, { expiresIn: '15m' });
 }
 
-export const generateRefreshToken = (user: any) => {
-
-    return sign({ email: user.email }, REFRESH_SECRET, { expiresIn: '7d' });
+export const generateRefreshToken = (user: any, secret: string) => {
+    return jwt.sign({ email: user.email }, secret, { expiresIn: '7d' });
 }
 
 
